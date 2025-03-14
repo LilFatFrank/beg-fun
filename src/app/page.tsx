@@ -239,8 +239,12 @@ export default function Home() {
   );
 
   return (
-    <div className="container mx-auto flex flex-col h-screen max-h-screen py-[40px] sm:py-[60px] md:py-[80px] lg:py-[100px] max-md:px-[20px] relative">
-      <img src="/assets/roadmap-image.jpg" alt="roadmap" className="absolute left-0 hidden lg:block lg:top-[100px]" />
+    <div className="container mx-auto flex flex-col h-screen max-h-screen py-[20px] md:py-[40px] max-md:px-[20px] relative">
+      <img
+        src="/assets/roadmap-image.jpg"
+        alt="roadmap"
+        className="absolute left-0 hidden xl:block lg:top-[40px]"
+      />
       <div className="flex flex-col items-center justify-center">
         <img
           src="/assets/logo-icon.svg"
@@ -250,7 +254,7 @@ export default function Home() {
         <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight">
           beg.fun
         </p>
-        <p className="text-[16px] sm:text-[20px] md:text-[24px] mt-2 md:mt-4">
+        <p className="text-[16px] sm:text-[20px] md:text-[24px] mb-2 md:mb-4">
           please send me 1 sol bro
         </p>
       </div>
@@ -295,7 +299,12 @@ export default function Home() {
                           </p>
                         ) : (
                           <div className="mt-[2px] cursor-pointer">
-                            <CopyIcon color={"#5D3014"} width="10" height="10" className="sm:w-[12px] sm:h-[12px]" />
+                            <CopyIcon
+                              color={"#5D3014"}
+                              width="10"
+                              height="10"
+                              className="sm:w-[12px] sm:h-[12px]"
+                            />
                           </div>
                         )}
                       </motion.button>
@@ -307,7 +316,9 @@ export default function Home() {
                       alt="sol"
                       className="w-5 h-5 sm:w-6 sm:h-6"
                     />
-                    <p className="font-[Montserrat] font-medium text-[12px] sm:text-[14px]">{msg.solAmount} SOL</p>
+                    <p className="font-[Montserrat] font-medium text-[12px] sm:text-[14px]">
+                      {msg.solAmount} SOL
+                    </p>
                   </div>
                 </div>
                 <div className="text-[12px] sm:text-[14px] break-all overflow-y-auto max-h-[72px] sm:max-h-[92px]">
@@ -367,7 +378,11 @@ export default function Home() {
             disabled={begDisabled}
             className="h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
           >
-            <img src="/assets/bolt-icon.svg" alt="bolt" className="w-3 h-3 sm:w-4 sm:h-4" />
+            <img
+              src="/assets/bolt-icon.svg"
+              alt="bolt"
+              className="w-3 h-3 sm:w-4 sm:h-4"
+            />
             <span>BEG</span>
           </button>
         </div>

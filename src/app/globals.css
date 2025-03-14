@@ -6,8 +6,8 @@
 }
 
 @font-face {
-  font-family: "IndieFlower";
-  src: url("/fonts/IndieFlower.ttf") format("truetype");
+  font-family: "ComicSans";
+  src: url("/fonts/Ldfcomicsans-jj7l.ttf") format("truetype");
 }
 
 @font-face {
@@ -32,7 +32,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "IndieFlower", Arial, Helvetica, sans-serif;
+  font-family: "ComicSans", Arial, Helvetica, sans-serif;
 }
 
 * {
