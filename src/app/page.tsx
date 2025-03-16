@@ -1,7 +1,54 @@
 "use client";
-import { PublicKey } from "@solana/web3.js";
+import React from "react";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
+import { format, isToday, parseISO } from "date-fns";
+import { Switch } from "@/components/Switch";
+import { toast } from "sonner";
+
+const voiceTypes = ["Indian", "Nigerian", "Chinese"];
+
+const voiceIds = {
+  Indian: [
+    "LSEq6jBkWbldjNhcDwT1",
+    "UxeNKVidAPGOtgg3CLBB",
+    "tQHPlZCaA3Oe1X8BqFIp",
+    "LKs6V6ilINRR5OoPi0bP",
+  ],
+  Nigerian: ["NVp9wQor3NDIWcxYoZiW", "ddDFRErfhdc2asyySOG5"],
+  Chinese: ["mbL34QDB5FptPamlgvX5"],
+};
+
+const getRandomVoiceType = () => {
+  const randomIndex = Math.floor(Math.random() * voiceTypes.length);
+  return voiceTypes[randomIndex];
+};
+
+const getRandomVoiceId = (voiceType: string) => {
+  const availableVoices = voiceIds[voiceType as keyof typeof voiceIds];
+  if (Array.isArray(availableVoices)) {
+    const randomIndex = Math.floor(Math.random() * availableVoices.length);
+    return availableVoices[randomIndex];
+  }
+  return availableVoices; // For Chinese which is a single string
+};
+
+const getFlagIcon = (voiceType: string) => {
+  switch (voiceType) {
+    case "Indian":
+      return "/assets/india-flag-icon.svg";
+    case "Nigerian":
+      return "/assets/nigeria-flag-icon.svg";
+    case "Chinese":
+      return "/assets/china-flag-icon.svg";
+    default:
+      return "/assets/india-flag-icon.svg";
+  }
+};
 
 const detectSolanaAddress = (add: string) => {
   try {
@@ -16,29 +63,322 @@ const detectSolanaAddress = (add: string) => {
   }
 };
 
+const PlayPauseButton = ({
+  text,
+  voiceId,
+  className,
+  ref,
+}: {
+  text: string;
+  voiceId: string;
+  className?: string;
+  ref?: React.RefObject<{ play: () => Promise<void> } | null>;
+}) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePlayPause = async () => {
+    if (isLoading) return;
+
+    if (audio) {
+      if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+      } else {
+        audio.play();
+        setIsPlaying(true);
+      }
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "audio/mpeg",
+            "Content-Type": "application/json",
+            "xi-api-key": process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || "",
+          },
+          body: JSON.stringify({
+            text,
+            model_id: "eleven_multilingual_v2",
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.5,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const url = URL.createObjectURL(audioBlob);
+      const newAudio = new Audio(url);
+
+      newAudio.addEventListener("ended", () => {
+        setIsPlaying(false);
+      });
+
+      newAudio.addEventListener("pause", () => {
+        setIsPlaying(false);
+      });
+
+      setAudio(newAudio);
+      newAudio.play();
+      setIsPlaying(true);
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      toast.error("Error generating speech");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Expose play function through ref
+  useEffect(() => {
+    if (ref) {
+      ref.current = {
+        play: handlePlayPause,
+      };
+    }
+  }, [ref]);
+
+  useEffect(() => {
+    return () => {
+      if (audio) {
+        audio.pause();
+        URL.revokeObjectURL(audio.src);
+      }
+    };
+  }, [audio]);
+
+  return (
+    <motion.button
+      onClick={handlePlayPause}
+      whileTap={{ scale: 0.9 }}
+      whileHover={{ scale: 1.1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className={className}
+      disabled={isLoading}
+    >
+      {isLoading ? (
+        <div className="w-5 h-5 sm:w-6 sm:h-6">
+          <div className="animate-spin rounded-full h-full w-full border-b-2 border-[#5D3014]"></div>
+        </div>
+      ) : (
+        <img
+          src={isPlaying ? "/assets/pause-icon.svg" : "/assets/play-icon.svg"}
+          alt={isPlaying ? "pause" : "play"}
+          className="w-5 h-5 sm:w-6 sm:h-6"
+          style={{ filter: "drop-shadow(0px 4px 12px rgba(93, 48, 20, 0.4))" }}
+        />
+      )}
+    </motion.button>
+  );
+};
+
+const Modal = ({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) => {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 z-50"
+      style={{ backgroundColor: "rgba(93, 48, 20, 0.88)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFD44F] w-full max-w-[540px] p-4 rounded-[8px] border border-[#FF9933] max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const MessageText = ({ text }: { text: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const textRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = textRef.current;
+    const measureElement = measureRef.current;
+    if (element && measureElement) {
+      // First measure without line-clamp to see if it would overflow
+      const lineHeight = parseInt(
+        window.getComputedStyle(measureElement).lineHeight
+      );
+      const wouldOverflow = measureElement.scrollHeight > lineHeight * 2;
+      setHasOverflow(wouldOverflow);
+    }
+  }, [text]);
+
+  return (
+    <>
+      <div className="relative w-full">
+        {/* Hidden element to measure overflow */}
+        <div
+          ref={measureRef}
+          className="text-[12px] sm:text-[14px] break-all absolute opacity-0 pointer-events-none"
+          style={{ width: "100%" }}
+        >
+          {text}
+        </div>
+        {/* Visible element with truncation */}
+        <div
+          ref={textRef}
+          className={`text-[12px] sm:text-[14px] break-all line-clamp-2`}
+        >
+          {text}
+          {hasOverflow && (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="absolute bottom-0 font-bold cursor-pointer right-0 bg-white pl-1 text-[12px] sm:text-[14px] text-[#5D3014] hover:underline"
+            >
+              ...view more
+            </button>
+          )}
+        </div>
+      </div>
+      <Modal isOpen={isExpanded} onClose={() => setIsExpanded(false)}>
+        <div className="text-[14px] sm:text-[16px] break-all">{text}</div>
+      </Modal>
+    </>
+  );
+};
+
+const formatMessageTime = (timestamp: string) => {
+  try {
+    // Parse the UTC ISO timestamp
+    const date = parseISO(timestamp);
+
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date");
+    }
+
+    // Convert UTC to local time by adding the timezone offset
+    const localDate = new Date(
+      date.getTime() - date.getTimezoneOffset() * 60000
+    );
+
+    if (isToday(localDate)) {
+      return format(localDate, "h:mma").toLowerCase(); // Formats like "10:11am"
+    }
+    return format(localDate, "do MMM ''yy"); // Formats like "15th Jan '25"
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return timestamp; // Return original timestamp if parsing fails
+  }
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<
-    { walletAddress: string; text: string; solAmount: string; _id: string }[]
+    {
+      walletAddress: string;
+      text: string;
+      solAmount: string;
+      _id: string;
+      begStatus: string;
+      timestamp: string;
+      voiceType: string;
+      voiceId: string;
+    }[]
   >([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState<{
+    total_count: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  }>({
+    total_count: 0,
+    page: 1,
+    limit: 50,
+    total_pages: 1,
+    has_next: false,
+    has_prev: false,
+  });
   const [walletAddress, setWalletAddress] = useState("");
   const [messageText, setMessageText] = useState("");
   const [solAmount, setSolAmount] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [lastActive, setLastActive] = useState<number>(Date.now());
+  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const websocketRetries = useRef(0);
   const idleCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const latestMessageRef = useRef<{ play: () => Promise<void> } | null>(null);
+  const [wordCount, setWordCount] = useState(0);
+  const [isInCooldown, setIsInCooldown] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [mobileMcdViewOpen, setMobileMcdViewOpen] = useState(false);
+  const { publicKey, sendTransaction, connected, disconnect } = useWallet();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [donatingMessageId, setDonatingMessageId] = useState<string | null>(
+    null
+  );
+
+  const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
+
+  const MIN_WORDS = 6;
+  const MAX_WORDS = 200;
+  const COOLDOWN_DURATION = 60;
+
+  const getWordCount = (text: string) => {
+    return text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
+  };
 
   // Function to fetch initial messages
   const fetchInitialMessages = useCallback(async () => {
     try {
+      setIsLoading(true);
       const response = await fetch(
-        `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_messages`
+        `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_messages&page=1&limit=${pagination.limit}`
       );
       const data = await response.json();
-      // Reverse the messages array since API returns latest first
       setMessages(
         data.messages
           .map((d: any) => ({
@@ -46,14 +386,57 @@ export default function Home() {
             text: d.text,
             solAmount: d.solAmount,
             _id: d._id,
+            begStatus: d.begStatus,
+            timestamp: d.timestamp,
+            voiceType: d.voiceType || "Indian",
+            voiceId: d.voiceId || voiceIds.Indian[0],
           }))
           .reverse()
       );
+      setPagination(data.pagination);
       console.log("Messages refreshed");
     } catch (error) {
+      toast.error("Error fetching initial messages");
       console.error("Error fetching initial messages:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [pagination.limit]);
+
+  const fetchMoreMessages = useCallback(async () => {
+    if (!pagination.has_next || isLoadingMore) return;
+
+    try {
+      setIsLoadingMore(true);
+      const nextPage = pagination.page + 1;
+      const response = await fetch(
+        `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_messages&page=${nextPage}&limit=${pagination.limit}`
+      );
+      const data = await response.json();
+
+      setMessages((prevMessages) => [
+        ...data.messages
+          .map((d: any) => ({
+            walletAddress: d.walletAddress,
+            text: d.text,
+            solAmount: d.solAmount,
+            _id: d._id,
+            begStatus: d.begStatus,
+            timestamp: d.timestamp,
+            voiceType: d.voiceType || "Indian",
+            voiceId: d.voiceId || voiceIds.Indian[0],
+          }))
+          .reverse(),
+        ...prevMessages,
+      ]);
+      setPagination(data.pagination);
+    } catch (error) {
+      toast.error("Error loading more messages");
+      console.error("Error loading more messages:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [pagination.has_next, pagination.page, pagination.limit, isLoadingMore]);
 
   const setupWebSocket = useCallback(() => {
     if (websocketRef.current?.readyState === WebSocket.OPEN) {
@@ -81,9 +464,7 @@ export default function Home() {
     websocketRef.current.onmessage = (event) => {
       try {
         const receivedMessage = JSON.parse(event.data);
-        console.log(receivedMessage);
 
-        // Only add to messages if it's a chat message (not a ping response)
         if (receivedMessage.walletAddress && receivedMessage.text) {
           setMessages((prevMessages) => [
             ...prevMessages,
@@ -92,13 +473,28 @@ export default function Home() {
               text: receivedMessage.text,
               solAmount: receivedMessage.solAmount,
               _id: receivedMessage.message_id,
+              begStatus: receivedMessage.begStatus,
+              timestamp: receivedMessage.timestamp,
+              voiceType: receivedMessage.voiceType || "Indian",
+              voiceId: receivedMessage.voiceId || voiceIds.Indian[0],
             },
           ]);
+
+          // Auto-play only if enabled
+          if (autoplayEnabled) {
+            setTimeout(() => {
+              if (latestMessageRef.current) {
+                latestMessageRef.current.play();
+              }
+            }, 100);
+          }
+
           setMessageText("");
           setWalletAddress("");
           setSolAmount("");
         }
       } catch (error) {
+        toast.error("Error parsing message");
         console.error("Error parsing message:", error);
       }
     };
@@ -119,30 +515,42 @@ export default function Home() {
     websocketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
     };
-  }, []);
+  }, [autoplayEnabled]);
 
   const handleSendMessage = useCallback(() => {
     try {
       if (
         !walletAddress.trim() ||
         !messageText.trim() ||
-        websocketRef.current?.readyState !== WebSocket.OPEN
+        websocketRef.current?.readyState !== WebSocket.OPEN ||
+        isInCooldown
       ) {
         return;
       }
+
+      const selectedVoiceType = getRandomVoiceType();
+      const selectedVoiceId = getRandomVoiceId(selectedVoiceType);
 
       const messageData = {
         action: "sendBegMessage",
         walletAddress: walletAddress,
         text: messageText,
         solAmount: solAmount,
+        begStatus: "pending",
+        voiceType: selectedVoiceType,
+        voiceId: selectedVoiceId,
       };
 
       websocketRef.current.send(JSON.stringify(messageData));
+
+      // Start cooldown
+      setIsInCooldown(true);
+      setCooldownSeconds(COOLDOWN_DURATION);
     } catch (error) {
+      toast.error("Error sending message");
       console.log(error);
     }
-  }, [walletAddress, messageText, solAmount]);
+  }, [walletAddress, messageText, solAmount, isInCooldown]);
 
   const copyText = useCallback(async (address: string, messageId: string) => {
     await navigator.clipboard.writeText(address ?? "");
@@ -222,6 +630,40 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Cooldown timer effect
+  useEffect(() => {
+    if (!isInCooldown) return;
+
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          setIsInCooldown(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isInCooldown]);
+
+  // Initialize autoplay from localStorage
+  useEffect(() => {
+    const savedAutoplay = localStorage.getItem("autoplay-beg-voices");
+    if (savedAutoplay === null) {
+      // If not set, default to true and save it
+      localStorage.setItem("autoplay-beg-voices", "true");
+    } else {
+      // If already set, use the saved value
+      setAutoplayEnabled(savedAutoplay === "true");
+    }
+  }, []);
+
+  const handleAutoplayChange = (checked: boolean) => {
+    setAutoplayEnabled(checked);
+    localStorage.setItem("autoplay-beg-voices", String(checked));
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -229,165 +671,783 @@ export default function Home() {
     }
   };
 
-  const begDisabled = useMemo(
-    () =>
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    const words = getWordCount(text);
+    if (words <= MAX_WORDS) {
+      setMessageText(text);
+      setWordCount(words);
+    }
+  };
+
+  const begDisabled = useMemo(() => {
+    const words = getWordCount(messageText);
+    return (
       !messageText ||
+      words < MIN_WORDS ||
+      words > MAX_WORDS ||
       !solAmount ||
       (walletAddress && !detectSolanaAddress(walletAddress)) ||
-      !walletAddress,
-    [messageText, solAmount, walletAddress]
-  );
+      !walletAddress ||
+      isInCooldown
+    );
+  }, [messageText, solAmount, walletAddress, isInCooldown]);
+
+  const handleDonate = async (
+    recipientAddress: string,
+    amount: string,
+    messageId: string
+  ) => {
+    try {
+      if (!publicKey) {
+        toast.info("Connect wallet to donate!");
+        return;
+      }
+
+      setDonatingMessageId(messageId);
+
+      const transferAmount = Number(amount) * LAMPORTS_PER_SOL;
+      const fee_percent = 1;
+
+      const toPubkey = new PublicKey(recipientAddress);
+      const feePubkey = new PublicKey(
+        process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT!
+      );
+
+      const lamports = Math.round(transferAmount);
+      const sendAmount = Math.round((lamports * (100 - fee_percent)) / 100);
+      const feeAmount = Math.round((lamports * fee_percent) / 100);
+
+      const transaction = new Transaction();
+
+      // Get fresh blockhash
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash("finalized");
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey,
+          lamports: sendAmount,
+        }),
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: feePubkey,
+          lamports: feeAmount,
+        })
+      );
+
+      const signature = await sendTransaction(transaction, connection);
+
+      // Confirm transaction with proper blockhash info
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+
+      if (confirmation.value.err) {
+        toast.error("Donation failed!");
+        throw new Error("Transaction failed");
+      }
+
+      // Update message status after successful donation
+      const response = await fetch(
+        "https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            method: "update_beg_message",
+            messageId: messageId,
+            walletAddress: recipientAddress,
+            updates: {
+              begStatus: "completed",
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Failed to update message status:", data);
+        toast.error("Donation sent but failed to update status");
+        return;
+      }
+
+      toast.success("Donation successful!");
+
+      // Update the message status in the local state
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageId ? { ...msg, begStatus: "completed" } : msg
+        )
+      );
+    } catch (error) {
+      toast.error("Could not make donation!");
+      console.log("Transaction error:", error);
+    } finally {
+      setDonatingMessageId(null);
+    }
+  };
+
+  // Initialize background music
+  useEffect(() => {
+    const audio = new Audio("/assets/beg-bg.mp3");
+    audio.loop = true;
+    audio.volume = 0.25; // Set volume to 25%
+    bgMusicRef.current = audio;
+
+    // Start playing when component mounts
+    const playMusic = () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.play().catch((error) => {
+          console.log("Background music autoplay prevented:", error);
+        });
+      }
+    };
+
+    // Try to play immediately
+    playMusic();
+
+    // Also try to play on first user interaction
+    const handleFirstInteraction = () => {
+      playMusic();
+      // Remove the event listeners after first interaction
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+    };
+
+    document.addEventListener("click", handleFirstInteraction);
+    document.addEventListener("touchstart", handleFirstInteraction);
+
+    // Cleanup
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause();
+        bgMusicRef.current = null;
+      }
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+    };
+  }, []);
+
+  // Add intersection observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMoreMessages();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current);
+      }
+    };
+  }, [fetchMoreMessages]);
 
   return (
-    <div className="container mx-auto flex flex-col h-screen max-h-screen py-[20px] md:py-[40px] max-md:px-[20px] relative">
-      <img
-        src="/assets/roadmap-image.jpg"
-        alt="roadmap"
-        className="absolute left-0 hidden xl:block lg:top-[40px]"
-      />
-      <div className="flex flex-col items-center justify-center">
-        <img
-          src="/assets/logo-icon.svg"
-          alt="logo"
-          className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] md:w-[120px] md:h-[120px]"
-        />
-        <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight">
-          beg.fun
-        </p>
-        <p className="text-[16px] sm:text-[20px] md:text-[24px] mb-2 md:mb-4">
-          please send me 1 sol bro
-        </p>
-      </div>
-
-      {/* Messages container - fixed order to show newest at bottom */}
-      <div className="grow flex-1 flex flex-col-reverse overflow-y-auto p-4">
-        <div className="flex-1 flex flex-col justify-end">
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className="mb-4 p-3 sm:p-4 w-full flex items-start justify-start gap-2 md:max-w-[540px] mx-auto border border-[#FFD44F] rounded-[8px] bg-white"
-            >
+    <>
+      <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
+        {/* Main container with 3 columns */}
+        <div className="flex gap-4 md:gap-6 lg:gap-[48px] py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
+          {/* Left section - hidden on mobile */}
+          <div className="hidden lg:block w-[25%] overflow-y-scroll">
+            <div className="flex flex-col items-center justify-center">
               <img
-                src="/assets/india-flag-icon.svg"
-                alt="india"
-                className="w-5 h-5 sm:w-6 sm:h-6"
+                src="/assets/logo-icon.svg"
+                alt="logo"
+                className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] md:w-[120px] md:h-[120px]"
               />
-              <div className="grow flex flex-col gap-2 sm:gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 sm:gap-2 text-[#5D3014]">
-                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-inherit">
-                      {msg.walletAddress.slice(0, 4)}...
-                      {msg.walletAddress.slice(-4)}
-                    </span>
-                    <span>
-                      <motion.button
-                        onClick={() => copyText(msg.walletAddress, msg._id)}
-                        whileTap={{ scale: 0.9 }}
-                        whileHover={{ scale: 1.1 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 20,
-                        }}
-                      >
-                        {copiedMessageId === msg._id ? (
-                          <p
-                            style={{ color: "#5D3014" }}
-                            className="text-[10px] sm:text-[12px] leading-3 flex items-center justify-center font-medium font-sofia-semibold"
-                          >
-                            copied!
-                          </p>
-                        ) : (
-                          <div className="mt-[2px] cursor-pointer">
-                            <CopyIcon
-                              color={"#5D3014"}
-                              width="10"
-                              height="10"
-                              className="sm:w-[12px] sm:h-[12px]"
-                            />
-                          </div>
-                        )}
-                      </motion.button>
-                    </span>
+              <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight text-[#5D3014]">
+                BegsFun
+              </p>
+              <p className="text-[16px] sm:text-[20px] md:text-[24px] mb-2 md:mb-4 text-[#5D3014]">
+                please send me 1 sol bro
+              </p>
+            </div>
+            <div className="mb-6 flex flex-col items-start gap-6 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
+              <div className="flex items-center justify-between w-full h-[64px] relative">
+                <img
+                  src="/assets/roadmape-icon.svg"
+                  alt="roadmape"
+                  className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
+                />
+                <img
+                  src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
+                  width={105}
+                  height={89}
+                  className="absolute right-[0px] top-[-24px]"
+                />
+              </div>
+              <div>
+                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                  500K - Rewards
+                </p>
+                <p className="text-[18px]">
+                  Top beggars/donors are dropped $BEGS
+                </p>
+              </div>
+              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+              <div>
+                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                  1M- Image/Video
+                </p>
+                <p className="text-[18px]">Upload content and beg</p>
+              </div>
+              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+              <div>
+                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                  5M- Leaderboard
+                </p>
+                <p className="text-[18px]">Beggar/donor of the day</p>
+              </div>
+              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+              <div>
+                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                  10M- BegPad
+                </p>
+                <p className="text-[18px]">Official launchpad to beg</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <Switch
+                checked={autoplayEnabled}
+                onCheckedChange={handleAutoplayChange}
+              />
+              <span>auto-play voices</span>
+            </div>
+          </div>
+
+          {/* Center section - main content */}
+          <div className="w-full lg:w-[50%] flex flex-col">
+            <>
+              <div className="relative">
+                <div className="flex lg:hidden flex-col items-center justify-center mb-2">
+                  <img
+                    src="/assets/logo-icon.svg"
+                    alt="logo"
+                    className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] md:w-[120px] md:h-[120px]"
+                  />
+                  <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight text-[#5D3014]">
+                    BegsFun
+                  </p>
+                  <p className="text-[16px] sm:text-[20px] md:text-[24px] text-[#5D3014]">
+                    please send me 1 sol bro
+                  </p>
+                </div>
+                {connected ? (
+                  <div className="flex lg:hidden items-center justify-center gap-2 h-10 mb-4">
+                    <div className="rounded-[8px] h-full px-4 py-1 border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                      <img
+                        src="/assets/solana-brown-icon.svg"
+                        alt="solana"
+                        className="w-4 h-4"
+                      />
+                      <p className="text-[#5D3014] text-[14px]">
+                        {publicKey?.toBase58().slice(0, 4)}...
+                        {publicKey?.toBase58().slice(-4)}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-[8px] h-full w-10 cursor-pointer flex items-center justify-center bg-[#FF9933]"
+                      onClick={disconnect}
+                    >
+                      <img
+                        src="/assets/disconnect-icon.svg"
+                        alt="disconnect"
+                        className="w-4 h-4"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <img
-                      src="/assets/solana-black-icon.svg"
-                      alt="sol"
-                      className="w-5 h-5 sm:w-6 sm:h-6"
-                    />
-                    <p className="font-[Montserrat] font-medium text-[12px] sm:text-[14px]">
-                      {msg.solAmount} SOL
+                ) : (
+                  <div className="flex lg:hidden items-center justify-center">
+                    <WalletMultiButton
+                      style={{
+                        background: "black",
+                        cursor: "pointer",
+                        padding: "4px 16px",
+                        width: "fit",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        color: "#FFD44F",
+                        fontWeight: 800,
+                        height: "40px",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <img
+                        src="/assets/solana-yellow-icon.svg"
+                        alt="solana"
+                        className="w-4 h-4"
+                      />
+                      <span className="font-[ComicSans] text-[14px] text-[#FFD44F] font-bold">
+                        Connect Wallet
+                      </span>
+                    </WalletMultiButton>
+                  </div>
+                )}
+                <span
+                  className="lg:hidden absolute right-0 top-0"
+                  onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
+                >
+                  <img
+                    src={
+                      mobileMcdViewOpen
+                        ? "/assets/mobile-close-icon.svg"
+                        : "/assets/mobile-mcd-icon.svg"
+                    }
+                    alt={mobileMcdViewOpen ? "close" : "mcd"}
+                    className="w-6 h-6"
+                    style={{
+                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                    }}
+                  />
+                </span>
+              </div>
+              {mobileMcdViewOpen ? (
+                <div className="overflow-y-auto">
+                  <div className="mb-4 flex flex-col items-start gap-6 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
+                    <div className="flex items-center justify-between w-full h-[64px] relative">
+                      <img
+                        src="/assets/roadmape-icon.svg"
+                        alt="roadmape"
+                        className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
+                      />
+                      <img
+                        src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
+                        width={105}
+                        height={89}
+                        className="absolute right-[0px] top-[-24px]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                        500K - Rewards
+                      </p>
+                      <p className="text-[18px]">
+                        Top beggars/donors are dropped $BEGS
+                      </p>
+                    </div>
+                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+                    <div>
+                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                        1M- Image/Video
+                      </p>
+                      <p className="text-[18px]">Upload content and beg</p>
+                    </div>
+                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+                    <div>
+                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                        5M- Leaderboard
+                      </p>
+                      <p className="text-[18px]">Beggar/donor of the day</p>
+                    </div>
+                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+                    <div>
+                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                        10M- BegPad
+                      </p>
+                      <p className="text-[18px]">Official launchpad to beg</p>
+                    </div>
+                  </div>
+                  <div className="bg-[#5D3014] rounded-[8px] p-4">
+                    <p className="text-[18px] text-white font-bold mb-3">
+                      Note:
+                    </p>
+                    <p className="text-[16px] text-white">
+                      The team will hold 10% of the supply for rewards and
+                      building out the platform!
                     </p>
                   </div>
                 </div>
-                <div className="text-[12px] sm:text-[14px] break-all overflow-y-auto max-h-[72px] sm:max-h-[92px]">
-                  {msg.text}
+              ) : (
+                <>
+                  {/* Messages container */}
+                  <div className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4">
+                    <div className="flex-1 flex flex-col justify-end">
+                      {isLoading ? (
+                        <div className="flex items-center justify-center h-full">
+                          <div className="w-8 h-8 border-4 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
+                        </div>
+                      ) : (
+                        <>
+                          {pagination.has_next && (
+                            <div
+                              ref={loadMoreRef}
+                              className="flex items-center justify-center py-4"
+                            >
+                              {isLoadingMore ? (
+                                <div className="w-6 h-6 border-3 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
+                              ) : (
+                                <span className="text-[#5D3014] text-sm">
+                                  Scroll for more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {messages.map((msg, index) => (
+                            <div
+                              key={msg._id}
+                              className="mb-4 p-3 sm:p-4 w-full mx-auto border border-[#FF9933] rounded-[8px] bg-white"
+                            >
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1 sm:gap-2 text-[#5D3014]">
+                                    <img
+                                      src={getFlagIcon(msg.voiceType)}
+                                      alt={msg.voiceType.toLowerCase()}
+                                      className="w-5 h-5 sm:w-6 sm:h-6"
+                                    />
+                                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-inherit">
+                                      {msg.walletAddress.slice(0, 4)}...
+                                      {msg.walletAddress.slice(-4)}
+                                    </span>
+                                    <span>
+                                      <motion.button
+                                        onClick={() =>
+                                          copyText(msg.walletAddress, msg._id)
+                                        }
+                                        whileTap={{ scale: 0.9 }}
+                                        whileHover={{ scale: 1.1 }}
+                                        transition={{
+                                          type: "spring",
+                                          stiffness: 300,
+                                          damping: 20,
+                                        }}
+                                      >
+                                        {copiedMessageId === msg._id ? (
+                                          <p
+                                            style={{ color: "#5D3014" }}
+                                            className="text-[10px] sm:text-[12px] leading-3 flex items-center justify-center font-medium font-sofia-semibold"
+                                          >
+                                            copied!
+                                          </p>
+                                        ) : (
+                                          <div className="mt-[2px] cursor-pointer">
+                                            <CopyIcon
+                                              color={"#5D3014"}
+                                              width="10"
+                                              height="10"
+                                              className="sm:w-[12px] sm:h-[12px]"
+                                            />
+                                          </div>
+                                        )}
+                                      </motion.button>
+                                    </span>
+                                    <div className="w-1 h-1 rounded-full bg-[#FFD44F]" />
+                                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-inherit">
+                                      {formatMessageTime(msg.timestamp)}
+                                    </span>
+                                  </div>
+                                  {msg.begStatus === "completed" ? (
+                                    <div className="hidden rounded-[8px] h-full px-4 py-1 border border-black lg:flex items-center justify-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                      <img
+                                        src="/assets/check-fulfilled-icon.svg"
+                                        alt="solana"
+                                        className="w-4 h-4"
+                                      />
+                                      <p className="text-[#5D3014] text-[14px]">
+                                        Beg fulfilled
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() =>
+                                        handleDonate(
+                                          msg.walletAddress,
+                                          msg.solAmount,
+                                          msg._id
+                                        )
+                                      }
+                                      disabled={donatingMessageId === msg._id}
+                                      className="hidden bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] lg:flex items-center justify-center gap-2 disabled:opacity-70"
+                                      style={{
+                                        filter:
+                                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                                      }}
+                                    >
+                                      {donatingMessageId === msg._id ? (
+                                        <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <>
+                                          <span className="text-[16px]">🫳</span>
+                                          <span className="font-bold text-[#FFD44F] text-[14px]">
+                                            Donate
+                                          </span>
+                                          <span className="flex items-center justify-center gap-1">
+                                            <img
+                                              src="/assets/solana-yellow-icon.svg"
+                                              alt="solana"
+                                              className="w-4 h-4"
+                                            />
+                                            <span className="text-[14px] text-[#FFD44F] font-bold">
+                                              {msg.solAmount}
+                                            </span>
+                                          </span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex items-start gap-1 sm:gap-2">
+                                  <PlayPauseButton
+                                    text={msg.text}
+                                    voiceId={msg.voiceId}
+                                    ref={
+                                      index === messages.length - 1
+                                        ? latestMessageRef
+                                        : undefined
+                                    }
+                                    className="flex-shrink-0"
+                                  />
+                                  <MessageText text={msg.text} />
+                                </div>
+                                {msg.begStatus === "completed" ? (
+                                  <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                    <img
+                                      src="/assets/check-fulfilled-icon.svg"
+                                      alt="solana"
+                                      className="w-4 h-4"
+                                    />
+                                    <p className="text-[#5D3014] text-[14px]">
+                                      Beg fulfilled
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      handleDonate(
+                                        msg.walletAddress,
+                                        msg.solAmount,
+                                        msg._id
+                                      )
+                                    }
+                                    disabled={donatingMessageId === msg._id}
+                                    className="flex bg-black cursor-pointer py-[2px] px-2 w-full rounded-[8px] lg:hidden items-center justify-center gap-2 disabled:opacity-70"
+                                    style={{
+                                      filter:
+                                        "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                                    }}
+                                  >
+                                    {donatingMessageId === msg._id ? (
+                                      <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <>
+                                        <span className="text-[16px]">🫳</span>
+                                        <span className="font-bold text-[#FFD44F] text-[14px]">
+                                          Donate
+                                        </span>
+                                        <span className="flex items-center justify-center gap-1">
+                                          <img
+                                            src="/assets/solana-yellow-icon.svg"
+                                            alt="solana"
+                                            className="w-4 h-4"
+                                          />
+                                          <span className="text-[14px] text-[#FFD44F] font-bold">
+                                            {msg.solAmount}
+                                          </span>
+                                        </span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          <div ref={messagesEndRef} />
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Input area */}
+                  <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto">
+                    <div className="flex flex-col space-y-2">
+                      <div className="relative">
+                        <textarea
+                          placeholder={
+                            isInCooldown
+                              ? `Please wait ${cooldownSeconds}s before sending another message`
+                              : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
+                          }
+                          value={messageText}
+                          onChange={handleMessageChange}
+                          onKeyDown={handleKeyPress}
+                          disabled={isInCooldown}
+                          className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          rows={2}
+                        />
+                        <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
+                          {wordCount}/{MAX_WORDS}
+                        </div>
+                      </div>
+                      <div className="max-md:flex-col flex items-center gap-2">
+                        <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
+                          <img
+                            src="/assets/solana-black-icon.svg"
+                            alt="solana"
+                            className="w-5 h-5 sm:w-6 sm:h-6"
+                          />
+                          <input
+                            placeholder="sol amount"
+                            value={solAmount}
+                            onChange={(e) => setSolAmount(e.target.value)}
+                            step="any"
+                            type="number"
+                            className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow"
+                          />
+                        </div>
+                        <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
+                          <img
+                            src="/assets/phantom-black-icon.svg"
+                            alt="phantom"
+                            className="w-5 h-5 sm:w-6 sm:h-6"
+                          />
+                          <input
+                            type="text"
+                            placeholder="sol address"
+                            value={walletAddress}
+                            onChange={(e) => setWalletAddress(e.target.value)}
+                            className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={begDisabled}
+                        className="h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
+                      >
+                        <img
+                          src="/assets/bolt-icon.svg"
+                          alt="bolt"
+                          className="w-3 h-3 sm:w-4 sm:h-4"
+                        />
+                        <span>BEG</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          </div>
+
+          {/* Right section - hidden on mobile */}
+          <div className="hidden lg:block w-[25%]">
+            <div className="flex items-end justify-end flex-col gap-6">
+              {connected ? (
+                <div className="flex items-center gap-2 h-10">
+                  <div className="rounded-[8px] h-full px-4 py-1 border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                    <img
+                      src="/assets/solana-brown-icon.svg"
+                      alt="solana"
+                      className="w-6 h-6"
+                    />
+                    <p className="text-[#5D3014]">
+                      {publicKey?.toBase58().slice(0, 4)}...
+                      {publicKey?.toBase58().slice(-4)}
+                    </p>
+                  </div>
+                  <div
+                    className="rounded-[8px] h-full w-10 cursor-pointer flex items-center justify-center bg-[#FF9933]"
+                    onClick={disconnect}
+                  >
+                    <img
+                      src="/assets/disconnect-icon.svg"
+                      alt="disconnect"
+                      className="w-6 h-6"
+                    />
+                  </div>
                 </div>
+              ) : (
+                <WalletMultiButton
+                  className="bg-black cursor-pointer py-2 px-4 w-fit rounded-[8px] flex items-center justify-center gap-2 text-[#FFD44F] font-bold"
+                  style={{
+                    background: "black",
+                    cursor: "pointer",
+                    padding: "4px 16px",
+                    width: "fit",
+                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    color: "#FFD44F",
+                    fontWeight: 800,
+                    height: "40px",
+                  }}
+                >
+                  <img
+                    src="/assets/solana-yellow-icon.svg"
+                    alt="solana"
+                    className="w-6 h-6"
+                  />
+                  <span className="font-[ComicSans] text-[16px] text-[#FFD44F] font-bold">
+                    Connect Wallet
+                  </span>
+                </WalletMultiButton>
+              )}
+              <img src="/assets/begs-meme-icon.svg" alt="begs" />
+              <div className="bg-[#5D3014] rounded-[8px] p-4">
+                <p className="text-[18px] text-white font-bold mb-3">Note:</p>
+                <p className="text-[16px] text-white">
+                  The team will hold 10% of the supply for rewards and building
+                  out the platform!
+                </p>
               </div>
             </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Input area */}
-      <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full md:max-w-[540px] mx-auto">
-        <div className="flex flex-col space-y-2">
-          <textarea
-            placeholder="enter your beg request"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyPress}
-            className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none"
-            rows={2}
-          />
-          <div className="max-md:flex-col flex items-center gap-2">
-            <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-              <img
-                src="/assets/solana-black-icon.svg"
-                alt="solana"
-                className="w-5 h-5 sm:w-6 sm:h-6"
-              />
-              <input
-                placeholder="sol amount"
-                value={solAmount}
-                onChange={(e) => setSolAmount(e.target.value)}
-                step="any"
-                type="number"
-                className="outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow"
-              />
-            </div>
-            <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-              <img
-                src="/assets/phantom-black-icon.svg"
-                alt="phantom"
-                className="w-5 h-5 sm:w-6 sm:h-6"
-              />
-              <input
-                type="text"
-                placeholder="sol address"
-                value={walletAddress}
-                onChange={(e) => setWalletAddress(e.target.value)}
-                className="outline-none border-none text-[14px] sm:text-[16px] pr-2"
-              />
-            </div>
           </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={begDisabled}
-            className="h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
-          >
-            <img
-              src="/assets/bolt-icon.svg"
-              alt="bolt"
-              className="w-3 h-3 sm:w-4 sm:h-4"
-            />
-            <span>BEG</span>
-          </button>
         </div>
       </div>
-    </div>
+      <div className="bg-[#FFD44F] h-[40px] flex items-center overflow-hidden whitespace-nowrap">
+        <div className="flex w-fit animate-marquee">
+          {/* First set of items */}
+          {Array(10)
+            .fill("it ain't gay, it ain't racist, it's finance fellas")
+            .map((text, i) => (
+              <React.Fragment key={`first-${i}`}>
+                <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                <img
+                  src="/assets/mcd-bottom-bar-icon.svg"
+                  alt="mcd"
+                  className="w-6 h-6 inline-block"
+                />
+              </React.Fragment>
+            ))}
+          {/* Duplicate set for seamless loop */}
+          {Array(10)
+            .fill("it ain't gay, it ain't racist, it's finance fellas")
+            .map((text, i) => (
+              <React.Fragment key={`second-${i}`}>
+                <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                <img
+                  src="/assets/mcd-bottom-bar-icon.svg"
+                  alt="mcd"
+                  className="w-6 h-6 inline-block"
+                />
+              </React.Fragment>
+            ))}
+        </div>
+      </div>
+    </>
   );
 }
 
