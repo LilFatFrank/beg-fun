@@ -663,13 +663,20 @@ export default function Home() {
   useEffect(() => {
     const savedAutoplay = localStorage.getItem("autoplay-beg-voices");
     if (savedAutoplay === null) {
-      // If not set, default to true and save it
       localStorage.setItem("autoplay-beg-voices", "true");
     } else {
-      // If already set, use the saved value
       setAutoplayEnabled(savedAutoplay === "true");
     }
   }, []);
+
+  // Populate wallet address when connected
+  useEffect(() => {
+    if (publicKey) {
+      setWalletAddress(publicKey.toBase58());
+    } else {
+      setWalletAddress("");
+    }
+  }, [publicKey]);
 
   const handleAutoplayChange = (checked: boolean) => {
     setAutoplayEnabled(checked);
