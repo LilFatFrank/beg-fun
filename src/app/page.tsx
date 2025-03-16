@@ -409,6 +409,12 @@ export default function Home() {
     try {
       setIsLoadingMore(true);
       const nextPage = pagination.page + 1;
+
+      // Store the current scroll position
+      const container = document.querySelector('.overflow-y-auto');
+      if (!container) return;
+      const oldScrollTop = container.scrollTop;
+
       const response = await fetch(
         `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_messages&page=${nextPage}&limit=${pagination.limit}`
       );
@@ -430,6 +436,12 @@ export default function Home() {
         ...prevMessages,
       ]);
       setPagination(data.pagination);
+
+      // After state updates, restore the exact same scroll position
+      requestAnimationFrame(() => {
+        container.scrollTop = oldScrollTop;
+      });
+
     } catch (error) {
       toast.error("Error loading more messages");
       console.error("Error loading more messages:", error);
