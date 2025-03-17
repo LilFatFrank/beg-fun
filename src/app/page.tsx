@@ -17,12 +17,18 @@ const voiceTypes = ["Indian", "Nigerian", "Chinese"];
 
 const voiceIds = {
   Indian: [
+    "CRIElKBddWiknSUmfeak",
+    "05QRrdNgiglhuYOaTQvw",
+    "LKs6V6ilINRR5OoPi0bP",
     "LSEq6jBkWbldjNhcDwT1",
     "UxeNKVidAPGOtgg3CLBB",
-    "tQHPlZCaA3Oe1X8BqFIp",
-    "LKs6V6ilINRR5OoPi0bP",
   ],
-  Nigerian: ["NVp9wQor3NDIWcxYoZiW", "ddDFRErfhdc2asyySOG5"],
+  Nigerian: [
+    "KfOKur2SDMsqQVcT1wKb",
+    "neMPCpWtBwWZhxEC8qpe",
+    "NVp9wQor3NDIWcxYoZiW",
+    "ddDFRErfhdc2asyySOG5",
+  ],
   Chinese: ["mbL34QDB5FptPamlgvX5"],
 };
 
@@ -288,9 +294,7 @@ const DonateModal = ({
             <span className="text-[12px] text-[#5D3014]">{solAmount} sol</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[#8F95B2] opacity-50">
-              BALANCE
-            </span>
+            <span className="text-[12px] text-[#8F95B2]">BALANCE</span>
             <div className="flex items-center gap-1">
               <img
                 src="/assets/solana-black-icon.svg"
@@ -343,7 +347,7 @@ const DonateModal = ({
               onChange={(e) => setAmount(e.target.value)}
               step="any"
               type="number"
-              className="w-full outline-none border-none text-[16px] pr-2 remove-arrow"
+              className="w-full outline-none border-none text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
             />
           </div>
         </div>
@@ -358,7 +362,7 @@ const DonateModal = ({
           ) : (
             <>
               <span className="text-[24px]">🫳</span>
-              <span className="font-bold">Donate</span>
+              <span className="font-bold text-[#FFD44F]">Donate</span>
             </>
           )}
         </button>
@@ -392,7 +396,7 @@ const MessageText = ({ text }: { text: string }) => {
         {/* Hidden element to measure overflow */}
         <div
           ref={measureRef}
-          className="text-[12px] sm:text-[14px] break-all absolute opacity-0 pointer-events-none"
+          className="text-black text-[12px] sm:text-[14px] break-all absolute opacity-0 pointer-events-none"
           style={{ width: "100%" }}
         >
           {text}
@@ -414,7 +418,9 @@ const MessageText = ({ text }: { text: string }) => {
         </div>
       </div>
       <Modal isOpen={isExpanded} onClose={() => setIsExpanded(false)}>
-        <div className="text-[14px] sm:text-[16px] break-all">{text}</div>
+        <div className="text-[14px] sm:text-[16px] break-all text-black">
+          {text}
+        </div>
       </Modal>
     </>
   );
@@ -517,7 +523,7 @@ export default function Home() {
 
   const MIN_WORDS = 6;
   const MAX_WORDS = 200;
-  const COOLDOWN_DURATION = 5;
+  const COOLDOWN_DURATION = 60;
 
   const getWordCount = (text: string) => {
     return text
@@ -567,7 +573,7 @@ export default function Home() {
       const nextPage = pagination.page + 1;
 
       // Store the current scroll position
-      const container = document.querySelector(".overflow-y-auto");
+      const container = document.getElementById("messages-container");
       if (!container) return;
       const oldScrollTop = container.scrollTop;
 
@@ -657,10 +663,6 @@ export default function Home() {
               }
             }, 100);
           }
-
-          setMessageText("");
-          if (!connected) setWalletAddress("");
-          setSolAmount("");
         }
       } catch (error) {
         toast.error("Error parsing message");
@@ -688,12 +690,39 @@ export default function Home() {
 
   const handleSendMessage = useCallback(() => {
     try {
-      if (
-        !walletAddress.trim() ||
-        !messageText.trim() ||
-        websocketRef.current?.readyState !== WebSocket.OPEN ||
-        isInCooldown
-      ) {
+      if (isInCooldown) {
+        toast.error(`Please wait ${cooldownSeconds}s before sending another message`);
+        return;
+      }
+
+      if (!messageText.trim()) {
+        toast.error("Please enter a message");
+        return;
+      }
+
+      const words = getWordCount(messageText);
+      if (words < MIN_WORDS) {
+        toast.error(`Message must be at least ${MIN_WORDS} words`);
+        return;
+      }
+
+      if (words > MAX_WORDS) {
+        toast.error(`Message cannot exceed ${MAX_WORDS} words`);
+        return;
+      }
+
+      if (!walletAddress.trim()) {
+        toast.error("Please enter a wallet address");
+        return;
+      }
+
+      if (!solAmount.trim()) {
+        toast.error("Please enter a SOL amount");
+        return;
+      }
+
+      if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+        toast.error("Connection error. Please try again.");
         return;
       }
 
@@ -712,6 +741,10 @@ export default function Home() {
 
       websocketRef.current.send(JSON.stringify(messageData));
 
+      setMessageText("");
+      if (!connected) setWalletAddress("");
+      setSolAmount("");
+
       // Start cooldown
       setIsInCooldown(true);
       setCooldownSeconds(COOLDOWN_DURATION);
@@ -719,7 +752,7 @@ export default function Home() {
       toast.error("Error sending message");
       console.log(error);
     }
-  }, [walletAddress, messageText, solAmount, isInCooldown]);
+  }, [walletAddress, messageText, solAmount, isInCooldown, cooldownSeconds, connected]);
 
   const copyText = useCallback(async (address: string, messageId: string) => {
     await navigator.clipboard.writeText(address ?? "");
@@ -1107,26 +1140,26 @@ export default function Home() {
         {/* Main container with 3 columns */}
         <div className="flex gap-4 md:gap-6 lg:gap-[48px] py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
           {/* Left section - hidden on mobile */}
-          <div className="hidden lg:block w-[25%] overflow-y-scroll">
+          <div className="hidden lg:block w-[27%] overflow-y-auto">
             <div className="flex flex-col items-center justify-center">
               <img
                 src="/assets/logo-icon.svg"
                 alt="logo"
-                className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] md:w-[120px] md:h-[120px]"
+                className="w-[80px] h-[80px]"
               />
-              <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight text-[#5D3014]">
+              <p className="text-[40px] leading-tight text-[#5D3014]">
                 BegsFun
               </p>
-              <p className="text-[16px] sm:text-[20px] md:text-[24px] mb-2 md:mb-4 text-[#5D3014]">
+              <p className="text-[20px] mb-2 md:mb-4 text-[#5D3014]">
                 please send me 1 sol bro
               </p>
             </div>
-            <div className="mb-6 flex flex-col items-start gap-6 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
-              <div className="flex items-center justify-between w-full h-[64px] relative">
+            <div className="mb-6 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
+              <div className="flex items-center justify-between w-full h-[60px] relative">
                 <img
                   src="/assets/roadmape-icon.svg"
                   alt="roadmape"
-                  className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
+                  className="absolute left-[-40px] top-[25%] translate-y-[-50%]"
                 />
                 <img
                   src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
@@ -1136,62 +1169,68 @@ export default function Home() {
                 />
               </div>
               <div>
-                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                   500K - Rewards
                 </p>
-                <p className="text-[18px]">
+                <p className="text-[16px] text-black">
                   Top beggars/donors are dropped $BEGS
                 </p>
               </div>
               <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
               <div>
-                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                   1M- Image/Video
                 </p>
-                <p className="text-[18px]">Upload content and beg</p>
+                <p className="text-[16px] text-black">Upload content and beg</p>
               </div>
               <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
               <div>
-                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                   5M- Leaderboard
                 </p>
-                <p className="text-[18px]">Beggar/donor of the day</p>
+                <p className="text-[16px] text-black">
+                  Beggar/donor of the day
+                </p>
               </div>
               <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
               <div>
-                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                   10M- BegPad
                 </p>
-                <p className="text-[18px]">Official launchpad to beg</p>
+                <p className="text-[16px] text-black">
+                  Official launchpad to beg
+                </p>
               </div>
               <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
               <div>
-                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                   20M- Livestream
                 </p>
-                <p className="text-[18px]">Beggars can livestream</p>
+                <p className="text-[16px] text-black">Beggars can livestream</p>
               </div>
             </div>
-            <div className="flex flex-col items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px]">
-              <div className="flex items-center justify-center gap-4">
+            <div className="flex items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px]">
+              <div className="flex items-center justify-center gap-2">
                 <Switch
+                  size="small"
                   checked={autoplayEnabled}
                   onCheckedChange={handleAutoplayChange}
                 />
-                <span>auto-play voices</span>
+                <span className="text-black">Auto-Play voices</span>
               </div>
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center gap-2">
                 <Switch
+                  size="small"
                   checked={musicEnabled}
                   onCheckedChange={handleMusicChange}
                 />
-                <span>music</span>
+                <span className="text-black">Music</span>
               </div>
             </div>
           </div>
 
           {/* Center section - main content */}
-          <div className="w-full lg:w-[50%] flex flex-col">
+          <div className="w-full lg:w-[46%] flex flex-col">
             <>
               <div className="relative flex items-center justify-between w-full mb-4">
                 <div className="lg:hidden">
@@ -1285,23 +1324,25 @@ export default function Home() {
               </div>
               {mobileMcdViewOpen ? (
                 <div className="overflow-y-auto">
-                  <div className="flex flex-col items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px] mb-4">
-                    <div className="flex items-center justify-center gap-4">
+                  <div className="flex items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px] mb-4">
+                    <div className="flex items-center justify-center gap-2">
                       <Switch
+                        size="small"
                         checked={autoplayEnabled}
                         onCheckedChange={handleAutoplayChange}
                       />
-                      <span>auto-play voices</span>
+                      <span className="text-black">Auto-Play voices</span>
                     </div>
-                    <div className="flex items-center justify-center gap-4">
+                    <div className="flex items-center justify-center gap-2">
                       <Switch
+                        size="small"
                         checked={musicEnabled}
                         onCheckedChange={handleMusicChange}
                       />
-                      <span>music</span>
+                      <span className="text-black">Music</span>
                     </div>
                   </div>
-                  <div className="mb-4 flex flex-col items-start gap-6 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
+                  <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
                     <div className="flex items-center justify-between w-full h-[64px] relative">
                       <img
                         src="/assets/roadmape-icon.svg"
@@ -1316,40 +1357,48 @@ export default function Home() {
                       />
                     </div>
                     <div>
-                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                         500K - Rewards
                       </p>
-                      <p className="text-[18px]">
+                      <p className="text-[16px] text-black">
                         Top beggars/donors are dropped $BEGS
                       </p>
                     </div>
                     <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
                     <div>
-                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                         1M- Image/Video
                       </p>
-                      <p className="text-[18px]">Upload content and beg</p>
+                      <p className="text-[16px] text-black">
+                        Upload content and beg
+                      </p>
                     </div>
                     <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
                     <div>
-                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                         5M- Leaderboard
                       </p>
-                      <p className="text-[18px]">Beggar/donor of the day</p>
+                      <p className="text-[16px] text-black">
+                        Beggar/donor of the day
+                      </p>
                     </div>
                     <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
                     <div>
-                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                         10M- BegPad
                       </p>
-                      <p className="text-[18px]">Official launchpad to beg</p>
+                      <p className="text-[16px] text-black">
+                        Official launchpad to beg
+                      </p>
                     </div>
                     <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
                     <div>
-                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
                         20M- Livestream
                       </p>
-                      <p className="text-[18px]">Beggars can livestream</p>
+                      <p className="text-[16px] text-black">
+                        Beggars can livestream
+                      </p>
                     </div>
                   </div>
                   <div className="bg-[#5D3014] rounded-[8px] p-4">
@@ -1365,7 +1414,7 @@ export default function Home() {
               ) : (
                 <>
                   {/* Messages container */}
-                  <div className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4">
+                  <div className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4" id="messages-container">
                     <div className="flex-1 flex flex-col justify-end">
                       {isLoading ? (
                         <div className="flex items-center justify-center h-full">
@@ -1400,7 +1449,7 @@ export default function Home() {
                                       alt={msg.voiceType.toLowerCase()}
                                       className="w-5 h-5 sm:w-6 sm:h-6"
                                     />
-                                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-inherit">
+                                    <span className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] sm:text-[14px]">
                                       {msg.walletAddress.slice(0, 4)}...
                                       {msg.walletAddress.slice(-4)}
                                     </span>
@@ -1437,7 +1486,7 @@ export default function Home() {
                                       </motion.button>
                                     </span>
                                     <div className="w-1 h-1 rounded-full bg-[#FFD44F]" />
-                                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-inherit">
+                                    <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-[#5D3014]">
                                       {formatMessageTime(msg.timestamp)}
                                     </span>
                                   </div>
@@ -1606,7 +1655,7 @@ export default function Home() {
                               onChange={handleMessageChange}
                               onKeyDown={handleKeyPress}
                               disabled={isInCooldown}
-                              className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-[#8F95B2] text-black"
                               rows={2}
                             />
                             <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
@@ -1627,7 +1676,7 @@ export default function Home() {
                                   onChange={(e) => setSolAmount(e.target.value)}
                                   step="any"
                                   type="number"
-                                  className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow"
+                                  className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
                                 />
                               </div>
                               <div className="flex items-center justify-start gap-1 flex-wrap">
@@ -1676,7 +1725,7 @@ export default function Home() {
                                 onChange={(e) =>
                                   setWalletAddress(e.target.value)
                                 }
-                                className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2"
+                                className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 placeholder:text-[#8F95B2] text-black"
                               />
                             </div>
                           </div>
@@ -1704,15 +1753,14 @@ export default function Home() {
                               handleSendMessage();
                             }
                           }}
-                          disabled={isInputAreaOpen && begDisabled}
-                          className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
+                          className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
                         >
                           <img
                             src="/assets/bolt-icon.svg"
                             alt="bolt"
                             className="w-3 h-3 sm:w-4 sm:h-4"
                           />
-                          <span>BEG</span>
+                          <span className="text-[#FFD44F]">BEG</span>
                         </button>
                       </div>
                     </div>
@@ -1757,7 +1805,7 @@ export default function Home() {
           </div>
 
           {/* Right section - hidden on mobile */}
-          <div className="hidden lg:block w-[25%]">
+          <div className="hidden lg:block w-[27%]">
             <div className="flex items-end justify-end flex-col gap-6">
               {connected ? (
                 <div className="flex items-center gap-2 h-10">
