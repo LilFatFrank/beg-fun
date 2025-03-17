@@ -1,14 +1,17 @@
 "use client";
-import React from "react";
+import React, { CSSProperties } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
 import { format, isToday, parseISO } from "date-fns";
 import { Switch } from "@/components/Switch";
 import { toast } from "sonner";
+import Link from "next/link";
+
+const solAmounts = ["0.1", "0.5", "1", "5", "10", "100"];
 
 const voiceTypes = ["Indian", "Nigerian", "Chinese"];
 
@@ -189,14 +192,18 @@ const Modal = ({
   isOpen,
   onClose,
   children,
+  preventClose = false,
+  style,
 }: {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  preventClose?: boolean;
+  style?: CSSProperties;
 }) => {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !preventClose) onClose();
     };
 
     if (isOpen) {
@@ -208,7 +215,7 @@ const Modal = ({
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, preventClose]);
 
   if (!isOpen) return null;
 
@@ -216,15 +223,147 @@ const Modal = ({
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
       style={{ backgroundColor: "rgba(93, 48, 20, 0.88)" }}
-      onClick={onClose}
+      onClick={preventClose ? undefined : onClose}
     >
       <div
         className="bg-[#FFD44F] w-full max-w-[540px] p-4 rounded-[8px] border border-[#FF9933] max-h-[80vh] overflow-y-auto"
+        style={{ ...style }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
     </div>
+  );
+};
+
+const DonateModal = ({
+  isOpen,
+  onClose,
+  solAmount,
+  fillAmount,
+  onDonate,
+  isDonating,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  solAmount: string;
+  fillAmount: string;
+  onDonate: (amount: string) => void;
+  isDonating: boolean;
+}) => {
+  const { publicKey } = useWallet();
+  const [balance, setBalance] = useState<number | null>(null);
+  const [amount, setAmount] = useState("");
+  const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (publicKey) {
+        const balance = await connection.getBalance(publicKey);
+        setBalance(balance / LAMPORTS_PER_SOL);
+      }
+    };
+    fetchBalance();
+  }, [publicKey]);
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      preventClose={isDonating}
+      style={{ background: "#ffffff", maxWidth: "360px" }}
+    >
+      <div className="flex flex-col">
+        <p className="text-[16px] text-[#5D3014] font-bold text-center mb-4">
+          MAKE A DONATION
+        </p>
+        <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100 mb-6" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img
+              src="/assets/solana-brown-icon.svg"
+              alt="solana"
+              className="w-3 h-3"
+            />
+            <span className="text-[12px] text-[#5D3014]">{solAmount} sol</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#8F95B2] opacity-50">
+              BALANCE
+            </span>
+            <div className="flex items-center gap-1">
+              <img
+                src="/assets/solana-black-icon.svg"
+                alt="solana"
+                className="w-3 h-3"
+              />
+              <span className="text-[12px] text-[#000]">
+                {balance?.toFixed(2) || "0.00"} SOL
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden border border-[#FF9933] mt-2">
+          <div
+            className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
+            style={{
+              width: `${Math.min(
+                100,
+                (Number(fillAmount) / Number(solAmount)) * 100
+              )}%`,
+            }}
+          />
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
+            <div className="relative z-10 mr-[12px] text-[12px] font-medium">
+              <span
+                className="text-[#000000]"
+                style={{
+                  color:
+                    (Number(fillAmount) / Number(solAmount)) * 100 >= 95
+                      ? "#FFFFFF"
+                      : "#000000",
+                }}
+              >
+                {Number(fillAmount).toFixed(2)} / {solAmount} sol
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="w-[60%] bg-gradient-to-r from-[#000000] to-[#ffffff] h-[1px] mt-[12px] mb-[16px]" />
+        <div className="w-full rounded-[8px] bg-white">
+          <div className="flex items-center gap-2 mb-1">
+            <img
+              src="/assets/solana-black-icon.svg"
+              alt="solana"
+              className="w-6 h-6"
+            />
+            <input
+              placeholder="sol amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              step="any"
+              type="number"
+              className="w-full outline-none border-none text-[16px] pr-2 remove-arrow"
+            />
+          </div>
+        </div>
+        <div className="w-[60%] bg-gradient-to-r from-[#000000] to-[#ffffff] h-[1px] mt-[12px] mb-[16px]" />
+        <button
+          onClick={() => onDonate(amount)}
+          disabled={!amount || isDonating}
+          className="h-[48px] w-full flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
+        >
+          {isDonating ? (
+            <div className="w-6 h-6 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <span className="text-[24px]">🫳</span>
+              <span className="font-bold">Donate</span>
+            </>
+          )}
+        </button>
+      </div>
+    </Modal>
   );
 };
 
@@ -261,7 +400,7 @@ const MessageText = ({ text }: { text: string }) => {
         {/* Visible element with truncation */}
         <div
           ref={textRef}
-          className={`text-[12px] sm:text-[14px] break-all line-clamp-2`}
+          className={`text-[12px] sm:text-[14px] break-all line-clamp-2 text-black`}
         >
           {text}
           {hasOverflow && (
@@ -316,6 +455,7 @@ export default function Home() {
       timestamp: string;
       voiceType: string;
       voiceId: string;
+      fillAmount: string;
     }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -341,6 +481,7 @@ export default function Home() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [lastActive, setLastActive] = useState<number>(Date.now());
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -357,12 +498,26 @@ export default function Home() {
   const [donatingMessageId, setDonatingMessageId] = useState<string | null>(
     null
   );
+  const [isInputAreaOpen, setIsInputAreaOpen] = useState(false);
+  const [donateModal, setDonateModal] = useState<{
+    isOpen: boolean;
+    recipientAddress: string;
+    solAmount: string;
+    messageId: string;
+    fillAmount: string;
+  }>({
+    isOpen: false,
+    recipientAddress: "",
+    solAmount: "",
+    messageId: "",
+    fillAmount: "",
+  });
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
   const MIN_WORDS = 6;
   const MAX_WORDS = 200;
-  const COOLDOWN_DURATION = 60;
+  const COOLDOWN_DURATION = 5;
 
   const getWordCount = (text: string) => {
     return text
@@ -390,6 +545,7 @@ export default function Home() {
             timestamp: d.timestamp,
             voiceType: d.voiceType || "Indian",
             voiceId: d.voiceId || voiceIds.Indian[0],
+            fillAmount: d.fillAmount || "0",
           }))
           .reverse()
       );
@@ -411,7 +567,7 @@ export default function Home() {
       const nextPage = pagination.page + 1;
 
       // Store the current scroll position
-      const container = document.querySelector('.overflow-y-auto');
+      const container = document.querySelector(".overflow-y-auto");
       if (!container) return;
       const oldScrollTop = container.scrollTop;
 
@@ -431,6 +587,7 @@ export default function Home() {
             timestamp: d.timestamp,
             voiceType: d.voiceType || "Indian",
             voiceId: d.voiceId || voiceIds.Indian[0],
+            fillAmount: d.fillAmount || "0",
           }))
           .reverse(),
         ...prevMessages,
@@ -441,7 +598,6 @@ export default function Home() {
       requestAnimationFrame(() => {
         container.scrollTop = oldScrollTop;
       });
-
     } catch (error) {
       toast.error("Error loading more messages");
       console.error("Error loading more messages:", error);
@@ -489,6 +645,7 @@ export default function Home() {
               timestamp: receivedMessage.timestamp,
               voiceType: receivedMessage.voiceType || "Indian",
               voiceId: receivedMessage.voiceId || voiceIds.Indian[0],
+              fillAmount: receivedMessage.fillAmount || "0",
             },
           ]);
 
@@ -502,7 +659,7 @@ export default function Home() {
           }
 
           setMessageText("");
-          setWalletAddress("");
+          if (!connected) setWalletAddress("");
           setSolAmount("");
         }
       } catch (error) {
@@ -635,7 +792,7 @@ export default function Home() {
   // Fetch initial messages on load
   useEffect(() => {
     fetchInitialMessages();
-  }, [fetchInitialMessages]);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -659,13 +816,21 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [isInCooldown]);
 
-  // Initialize autoplay from localStorage
+  // Initialize autoplay and music from localStorage
   useEffect(() => {
     const savedAutoplay = localStorage.getItem("autoplay-beg-voices");
+    const savedMusic = localStorage.getItem("autoplay-beg-music");
+
     if (savedAutoplay === null) {
       localStorage.setItem("autoplay-beg-voices", "true");
     } else {
       setAutoplayEnabled(savedAutoplay === "true");
+    }
+
+    if (savedMusic === null) {
+      localStorage.setItem("autoplay-beg-music", "true");
+    } else {
+      setMusicEnabled(savedMusic === "true");
     }
   }, []);
 
@@ -681,6 +846,20 @@ export default function Home() {
   const handleAutoplayChange = (checked: boolean) => {
     setAutoplayEnabled(checked);
     localStorage.setItem("autoplay-beg-voices", String(checked));
+  };
+
+  const handleMusicChange = (checked: boolean) => {
+    setMusicEnabled(checked);
+    localStorage.setItem("autoplay-beg-music", String(checked));
+    if (bgMusicRef.current) {
+      if (checked) {
+        bgMusicRef.current.play().catch((error) => {
+          console.log("Background music autoplay prevented:", error);
+        });
+      } else {
+        bgMusicRef.current.pause();
+      }
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -775,6 +954,15 @@ export default function Home() {
         throw new Error("Transaction failed");
       }
 
+      // Find the current message to get its solAmount and fillAmount
+      const currentMessage = messages.find((msg) => msg._id === messageId);
+      if (!currentMessage) {
+        throw new Error("Message not found");
+      }
+
+      const newFillAmount = Number(currentMessage.fillAmount) + Number(amount);
+      const isFilled = newFillAmount >= Number(currentMessage.solAmount);
+
       // Update message status after successful donation
       const response = await fetch(
         "https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/",
@@ -788,7 +976,8 @@ export default function Home() {
             messageId: messageId,
             walletAddress: recipientAddress,
             updates: {
-              begStatus: "completed",
+              begStatus: isFilled ? "completed" : "pending",
+              fillAmount: newFillAmount.toString(),
             },
           }),
         }
@@ -803,10 +992,16 @@ export default function Home() {
 
       toast.success("Donation successful!");
 
-      // Update the message status in the local state
+      // Update the message status and fillAmount in the local state
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
-          msg._id === messageId ? { ...msg, begStatus: "completed" } : msg
+          msg._id === messageId
+            ? {
+                ...msg,
+                begStatus: isFilled ? "completed" : "pending",
+                fillAmount: newFillAmount.toString(),
+              }
+            : msg
         )
       );
     } catch (error) {
@@ -824,21 +1019,23 @@ export default function Home() {
     audio.volume = 0.25; // Set volume to 25%
     bgMusicRef.current = audio;
 
-    // Start playing when component mounts
+    // Start playing when component mounts only if music is enabled
     const playMusic = () => {
-      if (bgMusicRef.current) {
+      if (bgMusicRef.current && musicEnabled) {
         bgMusicRef.current.play().catch((error) => {
           console.log("Background music autoplay prevented:", error);
         });
       }
     };
 
-    // Try to play immediately
+    // Try to play immediately if music is enabled
     playMusic();
 
-    // Also try to play on first user interaction
+    // Also try to play on first user interaction if music is enabled
     const handleFirstInteraction = () => {
-      playMusic();
+      if (musicEnabled) {
+        playMusic();
+      }
       // Remove the event listeners after first interaction
       document.removeEventListener("click", handleFirstInteraction);
       document.removeEventListener("touchstart", handleFirstInteraction);
@@ -856,7 +1053,7 @@ export default function Home() {
       document.removeEventListener("click", handleFirstInteraction);
       document.removeEventListener("touchstart", handleFirstInteraction);
     };
-  }, []);
+  }, [musicEnabled]); // Add musicEnabled as a dependency
 
   // Add intersection observer for infinite scroll
   useEffect(() => {
@@ -879,6 +1076,30 @@ export default function Home() {
       }
     };
   }, [fetchMoreMessages]);
+
+  const handleDonateClick = (
+    recipientAddress: string,
+    amount: string,
+    messageId: string,
+    fillAmount: string
+  ) => {
+    setDonateModal({
+      isOpen: true,
+      recipientAddress,
+      solAmount: amount,
+      messageId,
+      fillAmount,
+    });
+  };
+
+  const handleDonateSubmit = async (amount: string) => {
+    await handleDonate(
+      donateModal.recipientAddress,
+      amount,
+      donateModal.messageId
+    );
+    setDonateModal((prev) => ({ ...prev, isOpen: false }));
+  };
 
   return (
     <>
@@ -943,107 +1164,143 @@ export default function Home() {
                 </p>
                 <p className="text-[18px]">Official launchpad to beg</p>
               </div>
+              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+              <div>
+                <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                  20M- Livestream
+                </p>
+                <p className="text-[18px]">Beggars can livestream</p>
+              </div>
             </div>
-            <div className="flex flex-col items-center justify-center gap-1">
-              <Switch
-                checked={autoplayEnabled}
-                onCheckedChange={handleAutoplayChange}
-              />
-              <span>auto-play voices</span>
+            <div className="flex flex-col items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px]">
+              <div className="flex items-center justify-center gap-4">
+                <Switch
+                  checked={autoplayEnabled}
+                  onCheckedChange={handleAutoplayChange}
+                />
+                <span>auto-play voices</span>
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <Switch
+                  checked={musicEnabled}
+                  onCheckedChange={handleMusicChange}
+                />
+                <span>music</span>
+              </div>
             </div>
           </div>
 
           {/* Center section - main content */}
           <div className="w-full lg:w-[50%] flex flex-col">
             <>
-              <div className="relative">
-                <div className="flex lg:hidden flex-col items-center justify-center mb-2">
-                  <img
-                    src="/assets/logo-icon.svg"
-                    alt="logo"
-                    className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] md:w-[120px] md:h-[120px]"
-                  />
-                  <p className="text-[32px] sm:text-[44px] md:text-[56px] leading-tight text-[#5D3014]">
-                    BegsFun
-                  </p>
-                  <p className="text-[16px] sm:text-[20px] md:text-[24px] text-[#5D3014]">
+              <div className="relative flex items-center justify-between w-full mb-4">
+                <div className="lg:hidden">
+                  <div className="flex items-center justify-center gap-1">
+                    <img
+                      src="/assets/logo-icon.svg"
+                      alt="logo"
+                      className="w-10 h-10"
+                    />
+                    <p className="text-[20px] leading-tight text-[#5D3014]">
+                      BegsFun
+                    </p>
+                  </div>
+                  <p className="text-[12px] text-[#5D3014] leading-tight mt-[-2px]">
                     please send me 1 sol bro
                   </p>
                 </div>
-                {connected ? (
-                  <div className="flex lg:hidden items-center justify-center gap-2 h-10 mb-4">
-                    <div className="rounded-[8px] h-full px-4 py-1 border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
-                      <img
-                        src="/assets/solana-brown-icon.svg"
-                        alt="solana"
-                        className="w-4 h-4"
-                      />
-                      <p className="text-[#5D3014] text-[14px]">
-                        {publicKey?.toBase58().slice(0, 4)}...
-                        {publicKey?.toBase58().slice(-4)}
-                      </p>
+                <div className="flex lg:hidden items-center justify-center gap-1">
+                  {connected ? (
+                    <div className="flex lg:hidden items-center justify-center gap-1 h-6">
+                      <div className="rounded-[8px] h-full px-2 py-[2px] border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                        <img
+                          src="/assets/solana-brown-icon.svg"
+                          alt="solana"
+                          className="w-3 h-3"
+                        />
+                        <p className="text-[#5D3014] text-[9px]">
+                          {publicKey?.toBase58().slice(0, 4)}...
+                          {publicKey?.toBase58().slice(-4)}
+                        </p>
+                      </div>
+                      <div
+                        className="rounded-[8px] h-full w-6 cursor-pointer flex items-center justify-center bg-[#FF9933]"
+                        onClick={disconnect}
+                      >
+                        <img
+                          src="/assets/disconnect-icon.svg"
+                          alt="disconnect"
+                          className="w-[14px] h-[14px]"
+                        />
+                      </div>
                     </div>
-                    <div
-                      className="rounded-[8px] h-full w-10 cursor-pointer flex items-center justify-center bg-[#FF9933]"
-                      onClick={disconnect}
-                    >
-                      <img
-                        src="/assets/disconnect-icon.svg"
-                        alt="disconnect"
-                        className="w-4 h-4"
-                      />
+                  ) : (
+                    <div className="flex lg:hidden items-center justify-center">
+                      <WalletMultiButton
+                        style={{
+                          background: "black",
+                          cursor: "pointer",
+                          padding: "2px 8px",
+                          width: "fit",
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          color: "#FFD44F",
+                          fontWeight: 800,
+                          height: "24px",
+                        }}
+                      >
+                        <img
+                          src="/assets/solana-yellow-icon.svg"
+                          alt="solana"
+                          className="w-3 h-3"
+                        />
+                        <span className="font-[ComicSans] text-[9px] text-[#FFD44F] font-bold">
+                          Connect Wallet
+                        </span>
+                      </WalletMultiButton>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex lg:hidden items-center justify-center">
-                    <WalletMultiButton
+                  )}
+                  <span
+                    className="lg:hidden"
+                    onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
+                  >
+                    <img
+                      src={
+                        mobileMcdViewOpen
+                          ? "/assets/mobile-close-icon.svg"
+                          : "/assets/mobile-mcd-icon.svg"
+                      }
+                      alt={mobileMcdViewOpen ? "close" : "mcd"}
+                      className="w-6 h-6"
                       style={{
-                        background: "black",
-                        cursor: "pointer",
-                        padding: "4px 16px",
-                        width: "fit",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        color: "#FFD44F",
-                        fontWeight: 800,
-                        height: "40px",
-                        marginBottom: "16px",
+                        filter:
+                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
                       }}
-                    >
-                      <img
-                        src="/assets/solana-yellow-icon.svg"
-                        alt="solana"
-                        className="w-4 h-4"
-                      />
-                      <span className="font-[ComicSans] text-[14px] text-[#FFD44F] font-bold">
-                        Connect Wallet
-                      </span>
-                    </WalletMultiButton>
-                  </div>
-                )}
-                <span
-                  className="lg:hidden absolute right-0 top-0"
-                  onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
-                >
-                  <img
-                    src={
-                      mobileMcdViewOpen
-                        ? "/assets/mobile-close-icon.svg"
-                        : "/assets/mobile-mcd-icon.svg"
-                    }
-                    alt={mobileMcdViewOpen ? "close" : "mcd"}
-                    className="w-6 h-6"
-                    style={{
-                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                    }}
-                  />
-                </span>
+                    />
+                  </span>
+                </div>
               </div>
               {mobileMcdViewOpen ? (
                 <div className="overflow-y-auto">
+                  <div className="flex flex-col items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px] mb-4">
+                    <div className="flex items-center justify-center gap-4">
+                      <Switch
+                        checked={autoplayEnabled}
+                        onCheckedChange={handleAutoplayChange}
+                      />
+                      <span>auto-play voices</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-4">
+                      <Switch
+                        checked={musicEnabled}
+                        onCheckedChange={handleMusicChange}
+                      />
+                      <span>music</span>
+                    </div>
+                  </div>
                   <div className="mb-4 flex flex-col items-start gap-6 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
                     <div className="flex items-center justify-between w-full h-[64px] relative">
                       <img
@@ -1086,6 +1343,13 @@ export default function Home() {
                         10M- BegPad
                       </p>
                       <p className="text-[18px]">Official launchpad to beg</p>
+                    </div>
+                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+                    <div>
+                      <p className="text-[24px] text-[#5D3014] font-bold mb-2">
+                        20M- Livestream
+                      </p>
+                      <p className="text-[18px]">Beggars can livestream</p>
                     </div>
                   </div>
                   <div className="bg-[#5D3014] rounded-[8px] p-4">
@@ -1177,55 +1441,60 @@ export default function Home() {
                                       {formatMessageTime(msg.timestamp)}
                                     </span>
                                   </div>
-                                  {msg.begStatus === "completed" ? (
-                                    <div className="hidden rounded-[8px] h-full px-4 py-1 border border-black lg:flex items-center justify-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <span className="flex items-center justify-center gap-[2px]">
                                       <img
-                                        src="/assets/check-fulfilled-icon.svg"
+                                        src="/assets/solana-brown-icon.svg"
                                         alt="solana"
                                         className="w-4 h-4"
                                       />
-                                      <p className="text-[#5D3014] text-[14px]">
-                                        Beg fulfilled
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() =>
-                                        handleDonate(
-                                          msg.walletAddress,
-                                          msg.solAmount,
-                                          msg._id
-                                        )
-                                      }
-                                      disabled={donatingMessageId === msg._id}
-                                      className="hidden bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] lg:flex items-center justify-center gap-2 disabled:opacity-70"
-                                      style={{
-                                        filter:
-                                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                                      }}
-                                    >
-                                      {donatingMessageId === msg._id ? (
-                                        <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <>
-                                          <span className="text-[16px]">🫳</span>
-                                          <span className="font-bold text-[#FFD44F] text-[14px]">
-                                            Donate
-                                          </span>
-                                          <span className="flex items-center justify-center gap-1">
-                                            <img
-                                              src="/assets/solana-yellow-icon.svg"
-                                              alt="solana"
-                                              className="w-4 h-4"
-                                            />
-                                            <span className="text-[14px] text-[#FFD44F] font-bold">
-                                              {msg.solAmount}
+                                      <span className="font-[Montserrat] font-medium text-[#5D3014] text-[12px] sm:text-[14px]">
+                                        {msg.solAmount} sol
+                                      </span>
+                                    </span>
+                                    {msg.begStatus === "completed" ? (
+                                      <div className="hidden rounded-[8px] h-full px-4 py-1 border border-black lg:flex items-center justify-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                        <img
+                                          src="/assets/check-fulfilled-icon.svg"
+                                          alt="solana"
+                                          className="w-4 h-4"
+                                        />
+                                        <p className="text-[#5D3014] text-[14px]">
+                                          Beg fulfilled
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() =>
+                                          handleDonateClick(
+                                            msg.walletAddress,
+                                            msg.solAmount,
+                                            msg._id,
+                                            msg.fillAmount
+                                          )
+                                        }
+                                        disabled={donatingMessageId === msg._id}
+                                        className="hidden bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] lg:flex items-center justify-center gap-2 disabled:opacity-70"
+                                        style={{
+                                          filter:
+                                            "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                                        }}
+                                      >
+                                        {donatingMessageId === msg._id ? (
+                                          <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <>
+                                            <span className="text-[16px]">
+                                              🫳
                                             </span>
-                                          </span>
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
+                                            <span className="font-bold text-[#FFD44F] text-[14px]">
+                                              Donate
+                                            </span>
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex items-start gap-1 sm:gap-2">
                                   <PlayPauseButton
@@ -1254,10 +1523,11 @@ export default function Home() {
                                 ) : (
                                   <button
                                     onClick={() =>
-                                      handleDonate(
+                                      handleDonateClick(
                                         msg.walletAddress,
                                         msg.solAmount,
-                                        msg._id
+                                        msg._id,
+                                        msg.fillAmount
                                       )
                                     }
                                     disabled={donatingMessageId === msg._id}
@@ -1275,20 +1545,42 @@ export default function Home() {
                                         <span className="font-bold text-[#FFD44F] text-[14px]">
                                           Donate
                                         </span>
-                                        <span className="flex items-center justify-center gap-1">
-                                          <img
-                                            src="/assets/solana-yellow-icon.svg"
-                                            alt="solana"
-                                            className="w-4 h-4"
-                                          />
-                                          <span className="text-[14px] text-[#FFD44F] font-bold">
-                                            {msg.solAmount}
-                                          </span>
-                                        </span>
                                       </>
                                     )}
                                   </button>
                                 )}
+                                <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[8px] overflow-hidden">
+                                  <div
+                                    className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
+                                    style={{
+                                      width: `${Math.min(
+                                        100,
+                                        (Number(msg.fillAmount) /
+                                          Number(msg.solAmount)) *
+                                          100
+                                      )}%`,
+                                    }}
+                                  />
+                                  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
+                                    <div className="relative z-10 mr-[12px] text-[12px] font-medium">
+                                      <span
+                                        className="text-[#000000]"
+                                        style={{
+                                          color:
+                                            (Number(msg.fillAmount) /
+                                              Number(msg.solAmount)) *
+                                              100 >=
+                                            95
+                                              ? "#FFFFFF"
+                                              : "#000000",
+                                        }}
+                                      >
+                                        {Number(msg.fillAmount).toFixed(2)} /{" "}
+                                        {msg.solAmount} sol
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -1301,71 +1593,166 @@ export default function Home() {
                   {/* Input area */}
                   <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto">
                     <div className="flex flex-col space-y-2">
-                      <div className="relative">
-                        <textarea
-                          placeholder={
-                            isInCooldown
-                              ? `Please wait ${cooldownSeconds}s before sending another message`
-                              : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
-                          }
-                          value={messageText}
-                          onChange={handleMessageChange}
-                          onKeyDown={handleKeyPress}
-                          disabled={isInCooldown}
-                          className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          rows={2}
-                        />
-                        <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
-                          {wordCount}/{MAX_WORDS}
-                        </div>
-                      </div>
-                      <div className="max-md:flex-col flex items-center gap-2">
-                        <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
+                      {isInputAreaOpen && (
+                        <>
+                          <div className="relative">
+                            <textarea
+                              placeholder={
+                                isInCooldown
+                                  ? `Please wait ${cooldownSeconds}s before sending another message`
+                                  : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
+                              }
+                              value={messageText}
+                              onChange={handleMessageChange}
+                              onKeyDown={handleKeyPress}
+                              disabled={isInCooldown}
+                              className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              rows={2}
+                            />
+                            <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
+                              {wordCount}/{MAX_WORDS}
+                            </div>
+                          </div>
+                          <div className="flex-col-reverse flex items-center gap-2">
+                            <div className="w-full rounded-[8px] bg-white p-2">
+                              <div className="flex items-center gap-2 mb-1">
+                                <img
+                                  src="/assets/solana-black-icon.svg"
+                                  alt="solana"
+                                  className="w-5 h-5 sm:w-6 sm:h-6"
+                                />
+                                <input
+                                  placeholder="sol amount"
+                                  value={solAmount}
+                                  onChange={(e) => setSolAmount(e.target.value)}
+                                  step="any"
+                                  type="number"
+                                  className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow"
+                                />
+                              </div>
+                              <div className="flex items-center justify-start gap-1 flex-wrap">
+                                {solAmounts.map((sa) => (
+                                  <div
+                                    key={sa}
+                                    className={`p-2 rounded-[1000px] flex items-center gap-1 border cursor-pointer ${
+                                      sa === solAmount
+                                        ? "border-black bg-[#FFD44F]"
+                                        : "border-[#FFD44F] bg-black"
+                                    }`}
+                                    onClick={() => setSolAmount(sa)}
+                                  >
+                                    <img
+                                      src={
+                                        sa === solAmount
+                                          ? "/assets/solana-black-icon.svg"
+                                          : "/assets/solana-yellow-icon.svg"
+                                      }
+                                      alt="sol"
+                                      className="w-3 h-3"
+                                    />
+                                    <span
+                                      className={`${
+                                        sa === solAmount
+                                          ? "text-black"
+                                          : "text-[#FFD44F]"
+                                      } text-[12px] leading-tight`}
+                                    >
+                                      {sa}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
+                              <img
+                                src="/assets/phantom-black-icon.svg"
+                                alt="phantom"
+                                className="w-5 h-5 sm:w-6 sm:h-6"
+                              />
+                              <input
+                                type="text"
+                                placeholder="sol address"
+                                value={walletAddress}
+                                onChange={(e) =>
+                                  setWalletAddress(e.target.value)
+                                }
+                                className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {isInputAreaOpen && (
+                          <button
+                            onClick={() => {
+                              setIsInputAreaOpen(false);
+                              setMessageText("");
+                              setSolAmount("");
+                              setWalletAddress("");
+                            }}
+                            className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none"
+                          >
+                            ✕
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (!isInputAreaOpen) {
+                              setIsInputAreaOpen(true);
+                            } else {
+                              handleSendMessage();
+                            }
+                          }}
+                          disabled={isInputAreaOpen && begDisabled}
+                          className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
+                        >
                           <img
-                            src="/assets/solana-black-icon.svg"
-                            alt="solana"
-                            className="w-5 h-5 sm:w-6 sm:h-6"
+                            src="/assets/bolt-icon.svg"
+                            alt="bolt"
+                            className="w-3 h-3 sm:w-4 sm:h-4"
                           />
-                          <input
-                            placeholder="sol amount"
-                            value={solAmount}
-                            onChange={(e) => setSolAmount(e.target.value)}
-                            step="any"
-                            type="number"
-                            className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow"
-                          />
-                        </div>
-                        <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-                          <img
-                            src="/assets/phantom-black-icon.svg"
-                            alt="phantom"
-                            className="w-5 h-5 sm:w-6 sm:h-6"
-                          />
-                          <input
-                            type="text"
-                            placeholder="sol address"
-                            value={walletAddress}
-                            onChange={(e) => setWalletAddress(e.target.value)}
-                            className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2"
-                          />
-                        </div>
+                          <span>BEG</span>
+                        </button>
                       </div>
-                      <button
-                        onClick={handleSendMessage}
-                        disabled={begDisabled}
-                        className="h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
-                      >
-                        <img
-                          src="/assets/bolt-icon.svg"
-                          alt="bolt"
-                          className="w-3 h-3 sm:w-4 sm:h-4"
-                        />
-                        <span>BEG</span>
-                      </button>
                     </div>
                   </div>
                 </>
               )}
+
+              <div className="w-full lg:hidden flex items-center justify-center gap-2 pt-3">
+                {process.env.NEXT_PUBLIC_PUMP_ADD ? (
+                  <Link
+                    href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+                    target="_blank"
+                    rel="noreferrer noopener nofollower"
+                  >
+                    <img
+                      src="/assets/pump-icon.svg"
+                      alt="pump"
+                      className="w-6 h-6"
+                      style={{
+                        filter:
+                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                      }}
+                    />
+                  </Link>
+                ) : null}
+                <Link
+                  href={`https://x.com/begsfun`}
+                  target="_blank"
+                  rel="noreferrer noopener nofollower"
+                >
+                  <img
+                    src="/assets/x-icon.svg"
+                    alt="x"
+                    className="w-6 h-6"
+                    style={{
+                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                    }}
+                  />
+                </Link>
+              </div>
             </>
           </div>
 
@@ -1424,6 +1811,39 @@ export default function Home() {
                   </span>
                 </WalletMultiButton>
               )}
+              <div className="lg:flex items-center justify-end gap-2 hidden">
+                {process.env.NEXT_PUBLIC_PUMP_ADD ? (
+                  <Link
+                    href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+                    target="_blank"
+                    rel="noreferrer noopener nofollower"
+                  >
+                    <img
+                      src="/assets/pump-icon.svg"
+                      alt="pump"
+                      className="w-10 h-10"
+                      style={{
+                        filter:
+                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                      }}
+                    />
+                  </Link>
+                ) : null}
+                <Link
+                  href={`https://x.com/begsfun`}
+                  target="_blank"
+                  rel="noreferrer noopener nofollower"
+                >
+                  <img
+                    src="/assets/x-icon.svg"
+                    alt="x"
+                    className="w-10 h-10"
+                    style={{
+                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                    }}
+                  />
+                </Link>
+              </div>
               <img src="/assets/begs-meme-icon.svg" alt="begs" />
               <div className="bg-[#5D3014] rounded-[8px] p-4">
                 <p className="text-[18px] text-white font-bold mb-3">Note:</p>
@@ -1466,6 +1886,14 @@ export default function Home() {
             ))}
         </div>
       </div>
+      <DonateModal
+        isOpen={donateModal.isOpen}
+        onClose={() => setDonateModal((prev) => ({ ...prev, isOpen: false }))}
+        solAmount={donateModal.solAmount}
+        fillAmount={donateModal.fillAmount}
+        onDonate={handleDonateSubmit}
+        isDonating={!!donatingMessageId}
+      />
     </>
   );
 }
