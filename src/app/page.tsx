@@ -691,7 +691,9 @@ export default function Home() {
   const handleSendMessage = useCallback(() => {
     try {
       if (isInCooldown) {
-        toast.error(`Please wait ${cooldownSeconds}s before sending another message`);
+        toast.error(
+          `Please wait ${cooldownSeconds}s before sending another message`
+        );
         return;
       }
 
@@ -752,7 +754,14 @@ export default function Home() {
       toast.error("Error sending message");
       console.log(error);
     }
-  }, [walletAddress, messageText, solAmount, isInCooldown, cooldownSeconds, connected]);
+  }, [
+    walletAddress,
+    messageText,
+    solAmount,
+    isInCooldown,
+    cooldownSeconds,
+    connected,
+  ]);
 
   const copyText = useCallback(async (address: string, messageId: string) => {
     await navigator.clipboard.writeText(address ?? "");
@@ -1155,78 +1164,14 @@ export default function Home() {
               </p>
             </div>
             <div className="mb-6 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
-              <div className="flex items-center justify-between w-full h-[60px] relative">
-                <img
-                  src="/assets/roadmape-icon.svg"
-                  alt="roadmape"
-                  className="absolute left-[-40px] top-[25%] translate-y-[-50%]"
-                />
-                <img
-                  src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
-                  width={105}
-                  height={89}
-                  className="absolute right-[0px] top-[-24px]"
-                />
-              </div>
-              <div>
-                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                  500K - Rewards
-                </p>
-                <p className="text-[16px] text-black">
-                  Top beggars/donors are dropped $BEGS
-                </p>
-              </div>
-              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-              <div>
-                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                  1M- Image/Video
-                </p>
-                <p className="text-[16px] text-black">Upload content and beg</p>
-              </div>
-              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-              <div>
-                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                  5M- Leaderboard
-                </p>
-                <p className="text-[16px] text-black">
-                  Beggar/donor of the day
-                </p>
-              </div>
-              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-              <div>
-                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                  10M- BegPad
-                </p>
-                <p className="text-[16px] text-black">
-                  Official launchpad to beg
-                </p>
-              </div>
-              <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-              <div>
-                <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                  20M- Livestream
-                </p>
-                <p className="text-[16px] text-black">Beggars can livestream</p>
-              </div>
+              <RoadMapInfo />
             </div>
-            <div className="flex items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px]">
-              <div className="flex items-center justify-center gap-2">
-                <Switch
-                  size="small"
-                  checked={autoplayEnabled}
-                  onCheckedChange={handleAutoplayChange}
-                />
-                <span className="text-black">Auto-Play voices</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <Switch
-                  size="small"
-                  checked={musicEnabled}
-                  onCheckedChange={handleMusicChange}
-                />
-                <span className="text-black">Music</span>
-              </div>
-            </div>
+            <AudioOptions
+              musicEnabled={musicEnabled}
+              handleAutoplayChange={handleAutoplayChange}
+              handleMusicChange={handleMusicChange}
+              autoplayEnabled={autoplayEnabled}
+            />
           </div>
 
           {/* Center section - main content */}
@@ -1251,55 +1196,15 @@ export default function Home() {
                 <div className="flex lg:hidden items-center justify-center gap-1">
                   {connected ? (
                     <div className="flex lg:hidden items-center justify-center gap-1 h-6">
-                      <div className="rounded-[8px] h-full px-2 py-[2px] border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
-                        <img
-                          src="/assets/solana-brown-icon.svg"
-                          alt="solana"
-                          className="w-3 h-3"
-                        />
-                        <p className="text-[#5D3014] text-[9px]">
-                          {publicKey?.toBase58().slice(0, 4)}...
-                          {publicKey?.toBase58().slice(-4)}
-                        </p>
-                      </div>
-                      <div
-                        className="rounded-[8px] h-full w-6 cursor-pointer flex items-center justify-center bg-[#FF9933]"
-                        onClick={disconnect}
-                      >
-                        <img
-                          src="/assets/disconnect-icon.svg"
-                          alt="disconnect"
-                          className="w-[14px] h-[14px]"
-                        />
-                      </div>
+                      <ConnectedState
+                        address={publicKey?.toBase58() ?? ""}
+                        disconnect={disconnect}
+                        isMobile={true}
+                      />
                     </div>
                   ) : (
                     <div className="flex lg:hidden items-center justify-center">
-                      <WalletMultiButton
-                        style={{
-                          background: "black",
-                          cursor: "pointer",
-                          padding: "2px 8px",
-                          width: "fit",
-                          borderRadius: "8px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "8px",
-                          color: "#FFD44F",
-                          fontWeight: 800,
-                          height: "24px",
-                        }}
-                      >
-                        <img
-                          src="/assets/solana-yellow-icon.svg"
-                          alt="solana"
-                          className="w-3 h-3"
-                        />
-                        <span className="font-[ComicSans] text-[9px] text-[#FFD44F] font-bold">
-                          Connect Wallet
-                        </span>
-                      </WalletMultiButton>
+                      <ConnectButton isMobile={true} />
                     </div>
                   )}
                   <span
@@ -1324,97 +1229,25 @@ export default function Home() {
               </div>
               {mobileMcdViewOpen ? (
                 <div className="overflow-y-auto">
-                  <div className="flex items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px] mb-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <Switch
-                        size="small"
-                        checked={autoplayEnabled}
-                        onCheckedChange={handleAutoplayChange}
-                      />
-                      <span className="text-black">Auto-Play voices</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <Switch
-                        size="small"
-                        checked={musicEnabled}
-                        onCheckedChange={handleMusicChange}
-                      />
-                      <span className="text-black">Music</span>
-                    </div>
-                  </div>
+                  <AudioOptions
+                    musicEnabled={musicEnabled}
+                    handleAutoplayChange={handleAutoplayChange}
+                    handleMusicChange={handleMusicChange}
+                    autoplayEnabled={autoplayEnabled}
+                    isMobile={true}
+                  />
                   <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
-                    <div className="flex items-center justify-between w-full h-[64px] relative">
-                      <img
-                        src="/assets/roadmape-icon.svg"
-                        alt="roadmape"
-                        className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
-                      />
-                      <img
-                        src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
-                        width={105}
-                        height={89}
-                        className="absolute right-[0px] top-[-24px]"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                        500K - Rewards
-                      </p>
-                      <p className="text-[16px] text-black">
-                        Top beggars/donors are dropped $BEGS
-                      </p>
-                    </div>
-                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-                    <div>
-                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                        1M- Image/Video
-                      </p>
-                      <p className="text-[16px] text-black">
-                        Upload content and beg
-                      </p>
-                    </div>
-                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-                    <div>
-                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                        5M- Leaderboard
-                      </p>
-                      <p className="text-[16px] text-black">
-                        Beggar/donor of the day
-                      </p>
-                    </div>
-                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-                    <div>
-                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                        10M- BegPad
-                      </p>
-                      <p className="text-[16px] text-black">
-                        Official launchpad to beg
-                      </p>
-                    </div>
-                    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
-                    <div>
-                      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
-                        20M- Livestream
-                      </p>
-                      <p className="text-[16px] text-black">
-                        Beggars can livestream
-                      </p>
-                    </div>
+                    <RoadMapInfo />
                   </div>
-                  <div className="bg-[#5D3014] rounded-[8px] p-4">
-                    <p className="text-[18px] text-white font-bold mb-3">
-                      Note:
-                    </p>
-                    <p className="text-[16px] text-white">
-                      The team will hold 10% of the supply for rewards and
-                      building out the platform!
-                    </p>
-                  </div>
+                  <NoteInfo />
                 </div>
               ) : (
                 <>
                   {/* Messages container */}
-                  <div className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4" id="messages-container">
+                  <div
+                    className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4"
+                    id="messages-container"
+                  >
                     <div className="flex-1 flex flex-col justify-end">
                       {isLoading ? (
                         <div className="flex items-center justify-center h-full">
@@ -1513,35 +1346,11 @@ export default function Home() {
                                         </p>
                                       </div>
                                     ) : (
-                                      <button
-                                        onClick={() =>
-                                          handleDonateClick(
-                                            msg.walletAddress,
-                                            msg.solAmount,
-                                            msg._id,
-                                            msg.fillAmount
-                                          )
-                                        }
-                                        disabled={donatingMessageId === msg._id}
-                                        className="hidden bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] lg:flex items-center justify-center gap-2 disabled:opacity-70"
-                                        style={{
-                                          filter:
-                                            "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                                        }}
-                                      >
-                                        {donatingMessageId === msg._id ? (
-                                          <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                          <>
-                                            <span className="text-[16px]">
-                                              🫳
-                                            </span>
-                                            <span className="font-bold text-[#FFD44F] text-[14px]">
-                                              Donate
-                                            </span>
-                                          </>
-                                        )}
-                                      </button>
+                                      <DonateButton
+                                        handleDonateClick={handleDonateClick}
+                                        donatingMessageId={donatingMessageId}
+                                        msg={msg}
+                                      />
                                     )}
                                   </div>
                                 </div>
@@ -1570,33 +1379,12 @@ export default function Home() {
                                     </p>
                                   </div>
                                 ) : (
-                                  <button
-                                    onClick={() =>
-                                      handleDonateClick(
-                                        msg.walletAddress,
-                                        msg.solAmount,
-                                        msg._id,
-                                        msg.fillAmount
-                                      )
-                                    }
-                                    disabled={donatingMessageId === msg._id}
-                                    className="flex bg-black cursor-pointer py-[2px] px-2 w-full rounded-[8px] lg:hidden items-center justify-center gap-2 disabled:opacity-70"
-                                    style={{
-                                      filter:
-                                        "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                                    }}
-                                  >
-                                    {donatingMessageId === msg._id ? (
-                                      <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <>
-                                        <span className="text-[16px]">🫳</span>
-                                        <span className="font-bold text-[#FFD44F] text-[14px]">
-                                          Donate
-                                        </span>
-                                      </>
-                                    )}
-                                  </button>
+                                  <DonateButton
+                                    handleDonateClick={handleDonateClick}
+                                    donatingMessageId={donatingMessageId}
+                                    msg={msg}
+                                    isMobile={true}
+                                  />
                                 )}
                                 <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[8px] overflow-hidden">
                                   <div
@@ -1767,40 +1555,7 @@ export default function Home() {
                   </div>
                 </>
               )}
-
-              <div className="w-full lg:hidden flex items-center justify-center gap-2 pt-3">
-                {process.env.NEXT_PUBLIC_PUMP_ADD ? (
-                  <Link
-                    href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
-                    target="_blank"
-                    rel="noreferrer noopener nofollower"
-                  >
-                    <img
-                      src="/assets/pump-icon.svg"
-                      alt="pump"
-                      className="w-6 h-6"
-                      style={{
-                        filter:
-                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                      }}
-                    />
-                  </Link>
-                ) : null}
-                <Link
-                  href={`https://x.com/begsfun`}
-                  target="_blank"
-                  rel="noreferrer noopener nofollower"
-                >
-                  <img
-                    src="/assets/x-icon.svg"
-                    alt="x"
-                    className="w-6 h-6"
-                    style={{
-                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                    }}
-                  />
-                </Link>
-              </div>
+              <SocialLinks isMobile={true} />
             </>
           </div>
 
@@ -1809,97 +1564,17 @@ export default function Home() {
             <div className="flex items-end justify-end flex-col gap-6">
               {connected ? (
                 <div className="flex items-center gap-2 h-10">
-                  <div className="rounded-[8px] h-full px-4 py-1 border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
-                    <img
-                      src="/assets/solana-brown-icon.svg"
-                      alt="solana"
-                      className="w-6 h-6"
-                    />
-                    <p className="text-[#5D3014]">
-                      {publicKey?.toBase58().slice(0, 4)}...
-                      {publicKey?.toBase58().slice(-4)}
-                    </p>
-                  </div>
-                  <div
-                    className="rounded-[8px] h-full w-10 cursor-pointer flex items-center justify-center bg-[#FF9933]"
-                    onClick={disconnect}
-                  >
-                    <img
-                      src="/assets/disconnect-icon.svg"
-                      alt="disconnect"
-                      className="w-6 h-6"
-                    />
-                  </div>
+                  <ConnectedState
+                    address={publicKey?.toBase58() ?? ""}
+                    disconnect={disconnect}
+                  />
                 </div>
               ) : (
-                <WalletMultiButton
-                  className="bg-black cursor-pointer py-2 px-4 w-fit rounded-[8px] flex items-center justify-center gap-2 text-[#FFD44F] font-bold"
-                  style={{
-                    background: "black",
-                    cursor: "pointer",
-                    padding: "4px 16px",
-                    width: "fit",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    color: "#FFD44F",
-                    fontWeight: 800,
-                    height: "40px",
-                  }}
-                >
-                  <img
-                    src="/assets/solana-yellow-icon.svg"
-                    alt="solana"
-                    className="w-6 h-6"
-                  />
-                  <span className="font-[ComicSans] text-[16px] text-[#FFD44F] font-bold">
-                    Connect Wallet
-                  </span>
-                </WalletMultiButton>
+                <ConnectButton />
               )}
-              <div className="lg:flex items-center justify-end gap-2 hidden">
-                {process.env.NEXT_PUBLIC_PUMP_ADD ? (
-                  <Link
-                    href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
-                    target="_blank"
-                    rel="noreferrer noopener nofollower"
-                  >
-                    <img
-                      src="/assets/pump-icon.svg"
-                      alt="pump"
-                      className="w-10 h-10"
-                      style={{
-                        filter:
-                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                      }}
-                    />
-                  </Link>
-                ) : null}
-                <Link
-                  href={`https://x.com/begsfun`}
-                  target="_blank"
-                  rel="noreferrer noopener nofollower"
-                >
-                  <img
-                    src="/assets/x-icon.svg"
-                    alt="x"
-                    className="w-10 h-10"
-                    style={{
-                      filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                    }}
-                  />
-                </Link>
-              </div>
+              <SocialLinks />
               <img src="/assets/begs-meme-icon.svg" alt="begs" />
-              <div className="bg-[#5D3014] rounded-[8px] p-4">
-                <p className="text-[18px] text-white font-bold mb-3">Note:</p>
-                <p className="text-[16px] text-white">
-                  The team will hold 10% of the supply for rewards and building
-                  out the platform!
-                </p>
-              </div>
+              <NoteInfo />
             </div>
           </div>
         </div>
@@ -1973,3 +1648,272 @@ const CopyIcon = ({
     </svg>
   );
 };
+
+const RoadMapInfo = () => (
+  <>
+    <div className="flex items-center justify-between w-full h-[60px] relative">
+      <img
+        src="/assets/roadmape-icon.svg"
+        alt="roadmape"
+        className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
+      />
+      <img
+        src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
+        width={105}
+        height={89}
+        className="absolute right-[0px] top-[-24px]"
+      />
+    </div>
+    <div>
+      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
+        500K - Rewards
+      </p>
+      <p className="text-[16px] text-black">
+        Top beggars/donors are dropped $BEGS
+      </p>
+    </div>
+    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+    <div>
+      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
+        1M- Image/Video
+      </p>
+      <p className="text-[16px] text-black">Upload content and beg</p>
+    </div>
+    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+    <div>
+      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
+        5M- Leaderboard
+      </p>
+      <p className="text-[16px] text-black">Beggar/donor of the day</p>
+    </div>
+    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+    <div>
+      <p className="text-[20px] text-[#5D3014] font-bold mb-2">10M- BegPad</p>
+      <p className="text-[16px] text-black">Official launchpad to beg</p>
+    </div>
+    <hr className="w-full h-0 border-[0.5px] border-[#5D3014] opacity-100" />
+    <div>
+      <p className="text-[20px] text-[#5D3014] font-bold mb-2">
+        20M- Livestream
+      </p>
+      <p className="text-[16px] text-black">Beggars can livestream</p>
+    </div>
+  </>
+);
+
+const NoteInfo = () => (
+  <>
+    <div className="bg-[#5D3014] rounded-[8px] p-4">
+      <p className="text-[18px] text-white font-bold mb-3">Note:</p>
+      <p className="text-[16px] text-white">
+        The team will hold 10% of the supply for rewards and building out the
+        platform!
+      </p>
+    </div>
+  </>
+);
+
+const ConnectButton = ({ isMobile = false }) => (
+  <>
+    <WalletMultiButton
+      style={{
+        background: "black",
+        cursor: "pointer",
+        padding: isMobile ? "2px 8px" : "4px 16px",
+        width: "fit",
+        borderRadius: "8px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        color: "#FFD44F",
+        fontWeight: 800,
+        height: isMobile ? "24px" : "40px",
+      }}
+    >
+      <img
+        src="/assets/solana-yellow-icon.svg"
+        alt="solana"
+        className={isMobile ? "w-3 h-3" : "w-6 h-6"}
+      />
+      <span
+        className={`font-[ComicSans] ${
+          isMobile ? "text-[9px]" : "text-[16px]"
+        } text-[#FFD44F] font-bold`}
+      >
+        Connect Wallet
+      </span>
+    </WalletMultiButton>
+  </>
+);
+
+const ConnectedState = ({
+  address,
+  disconnect,
+  isMobile = false,
+}: {
+  address: string;
+  disconnect: () => Promise<void>;
+  isMobile?: boolean;
+}) => (
+  <>
+    <div
+      className={`rounded-[8px] h-full ${
+        isMobile ? "px-2 py-[2px]" : "px-4 py-1"
+      } border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]`}
+    >
+      <img
+        src="/assets/solana-brown-icon.svg"
+        alt="solana"
+        className={isMobile ? "w-3 h-3" : "w-6 h-6"}
+      />
+      <p
+        className={`text-[#5D3014] ${isMobile ? "text-[9px]" : "text-[16px]"}`}
+      >
+        {address.slice(0, 4)}...
+        {address.slice(-4)}
+      </p>
+    </div>
+    <div
+      className={`rounded-[8px] h-full ${
+        isMobile ? "w-6" : "w-10"
+      } cursor-pointer flex items-center justify-center bg-[#FF9933]`}
+      onClick={disconnect}
+    >
+      <img
+        src="/assets/disconnect-icon.svg"
+        alt="disconnect"
+        className={isMobile ? "w-[14px] h-[14px]" : "w-6 h-6"}
+      />
+    </div>
+  </>
+);
+
+const SocialLinks = ({ isMobile = false }) => (
+  <>
+    <div
+      className={`${
+        isMobile ? "w-full lg:hidden flex pt-3" : "lg:flex hidden"
+      } items-center justify-end gap-2`}
+    >
+      {process.env.NEXT_PUBLIC_PUMP_ADD ? (
+        <Link
+          href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+          target="_blank"
+          rel="noreferrer noopener nofollower"
+        >
+          <img
+            src="/assets/pump-icon.svg"
+            alt="pump"
+            className={isMobile ? "w-6 h-6" : "w-10 h-10"}
+            style={{
+              filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+            }}
+          />
+        </Link>
+      ) : null}
+      <Link
+        href={`https://x.com/begsfun`}
+        target="_blank"
+        rel="noreferrer noopener nofollower"
+      >
+        <img
+          src="/assets/x-icon.svg"
+          alt="x"
+          className={isMobile ? "w-6 h-6" : "w-10 h-10"}
+          style={{
+            filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+          }}
+        />
+      </Link>
+    </div>
+  </>
+);
+
+const DonateButton = ({
+  handleDonateClick,
+  donatingMessageId,
+  msg,
+  isMobile = false,
+}: {
+  handleDonateClick: (
+    recipientAddress: string,
+    amount: string,
+    messageId: string,
+    fillAmount: string
+  ) => void;
+  donatingMessageId: string | null;
+  msg: {
+    _id: string;
+    solAmount: string;
+    walletAddress: string;
+    fillAmount: string;
+  };
+  isMobile?: boolean;
+}) => (
+  <>
+    <button
+      onClick={() =>
+        handleDonateClick(
+          msg.walletAddress,
+          msg.solAmount,
+          msg._id,
+          msg.fillAmount
+        )
+      }
+      disabled={donatingMessageId === msg._id}
+      className={`${
+        isMobile ? "flex lg:hidden" : "hidden lg:flex"
+      } bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] items-center justify-center gap-2 disabled:opacity-70`}
+      style={{
+        filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+      }}
+    >
+      {donatingMessageId === msg._id ? (
+        <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <>
+          <span className="text-[16px]">🫳</span>
+          <span className="font-bold text-[#FFD44F] text-[14px]">Donate</span>
+        </>
+      )}
+    </button>
+  </>
+);
+
+const AudioOptions = ({
+  autoplayEnabled,
+  handleAutoplayChange,
+  musicEnabled,
+  handleMusicChange,
+  isMobile,
+}: {
+  autoplayEnabled: boolean;
+  handleAutoplayChange: (checked: boolean) => void;
+  musicEnabled: boolean;
+  handleMusicChange: (checked: boolean) => void;
+  isMobile?: boolean;
+}) => (
+  <div
+    className={`flex items-start justify-center gap-4 w-full p-3 border border-[#5D3014] rounded-[8px] ${
+      isMobile ? "mb-4" : ""
+    }`}
+  >
+    <div className="flex items-center justify-center gap-2">
+      <Switch
+        size="small"
+        checked={autoplayEnabled}
+        onCheckedChange={handleAutoplayChange}
+      />
+      <span className="text-black">Auto-Play voices</span>
+    </div>
+    <div className="flex items-center justify-center gap-2">
+      <Switch
+        size="small"
+        checked={musicEnabled}
+        onCheckedChange={handleMusicChange}
+      />
+      <span className="text-black">Music</span>
+    </div>
+  </div>
+);
