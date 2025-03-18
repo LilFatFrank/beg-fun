@@ -33,8 +33,17 @@ const voiceIds = {
 };
 
 const getRandomVoiceType = () => {
-  const randomIndex = Math.floor(Math.random() * voiceTypes.length);
-  return voiceTypes[randomIndex];
+  // 60% chance to select Indian voice type
+  const indianBias = 0.6;
+  
+  if (Math.random() < indianBias) {
+    return "Indian";
+  } else {
+    // For the remaining 30%, choose randomly between Nigerian and Chinese
+    const otherTypes = voiceTypes.filter(type => type !== "Indian");
+    const randomIndex = Math.floor(Math.random() * otherTypes.length);
+    return otherTypes[randomIndex];
+  }
 };
 
 const getRandomVoiceId = (voiceType: string) => {
@@ -1058,7 +1067,7 @@ export default function Home() {
   useEffect(() => {
     const audio = new Audio("/assets/beg-bg.mp3");
     audio.loop = true;
-    audio.volume = 0.25; // Set volume to 25%
+    audio.volume = 0.15; // Set volume to 25%
     bgMusicRef.current = audio;
 
     // Start playing when component mounts only if music is enabled
@@ -1125,6 +1134,10 @@ export default function Home() {
     messageId: string,
     fillAmount: string
   ) => {
+    if (!publicKey) {
+      toast.info("Connect wallet to donate!");
+      return;
+    }
     setDonateModal({
       isOpen: true,
       recipientAddress,
@@ -1582,31 +1595,97 @@ export default function Home() {
       <div className="bg-[#FFD44F] h-[40px] flex items-center overflow-hidden whitespace-nowrap">
         <div className="flex w-fit animate-marquee">
           {/* First set of items */}
-          {Array(10)
-            .fill("it ain't gay, it ain't racist, it's finance fellas")
-            .map((text, i) => (
-              <React.Fragment key={`first-${i}`}>
-                <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
-                <img
-                  src="/assets/mcd-bottom-bar-icon.svg"
-                  alt="mcd"
-                  className="w-6 h-6 inline-block"
-                />
-              </React.Fragment>
-            ))}
+          {process.env.NEXT_PUBLIC_PUMP_ADD ? (
+            <>
+              {Array(5).fill(null).map((_, i) => (
+                <React.Fragment key={`first-extended-${i}`}>
+                  <span className="mx-4 text-[#5D3014] font-bold">
+                    it ain't gay, it ain't racist, it's finance fellas
+                  </span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                  <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                  <span className="mx-4 text-[#5D3014] font-bold">
+                    ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
+                  </span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                </React.Fragment>
+              ))}
+            </>
+          ) : (
+            <>
+              {Array(10)
+                .fill("it ain't gay, it ain't racist, it's finance fellas")
+                .map((text, i) => (
+                  <React.Fragment key={`first-${i}`}>
+                    <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                  </React.Fragment>
+                ))}
+            </>
+          )}
           {/* Duplicate set for seamless loop */}
-          {Array(10)
-            .fill("it ain't gay, it ain't racist, it's finance fellas")
-            .map((text, i) => (
-              <React.Fragment key={`second-${i}`}>
-                <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
-                <img
-                  src="/assets/mcd-bottom-bar-icon.svg"
-                  alt="mcd"
-                  className="w-6 h-6 inline-block"
-                />
-              </React.Fragment>
-            ))}
+          {process.env.NEXT_PUBLIC_PUMP_ADD ? (
+            <>
+              {Array(5).fill(null).map((_, i) => (
+                <React.Fragment key={`second-extended-${i}`}>
+                  <span className="mx-4 text-[#5D3014] font-bold">
+                    it ain't gay, it ain't racist, it's finance fellas
+                  </span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                  <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                  <span className="mx-4 text-[#5D3014] font-bold">
+                    ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
+                  </span>
+                  <img
+                    src="/assets/mcd-bottom-bar-icon.svg"
+                    alt="mcd"
+                    className="w-6 h-6 inline-block"
+                  />
+                </React.Fragment>
+              ))}
+            </>
+          ) : (
+            <>
+              {Array(10)
+                .fill("it ain't gay, it ain't racist, it's finance fellas")
+                .map((text, i) => (
+                  <React.Fragment key={`second-${i}`}>
+                    <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                  </React.Fragment>
+                ))}
+            </>
+          )}
         </div>
       </div>
       <DonateModal
