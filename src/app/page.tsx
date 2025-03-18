@@ -517,6 +517,10 @@ export default function Home() {
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
+  const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
+    ? process.env.NEXT_PUBLIC_ADMIN_WALLETS.split(",")
+    : [];
+
   const MIN_WORDS = 6;
   const MAX_WORDS = 200;
   const COOLDOWN_DURATION = 60;
@@ -642,11 +646,13 @@ export default function Home() {
           // Handle new beg messages and check for duplicates
           setMessages((prevMessages) => {
             // Check if message with this ID already exists
-            const messageExists = prevMessages.some(msg => msg._id === receivedMessage.message_id);
+            const messageExists = prevMessages.some(
+              (msg) => msg._id === receivedMessage.message_id
+            );
             if (messageExists) {
               return prevMessages; // Don't add duplicate message
             }
-            
+
             // Add new message
             return [
               ...prevMessages,
@@ -686,6 +692,28 @@ export default function Home() {
                 : message
             )
           );
+        } else if (
+          receivedMessage.type === "begMessageDeleted" ||
+          receivedMessage.type === "begMessageDeletedConfirmation"
+        ) {
+          // Store the current scroll position
+          const container = document.getElementById("messages-container");
+          if (!container) return;
+          const oldScrollTop = container.scrollTop;
+
+          setMessages((prevMessages) =>
+            prevMessages.filter(
+              (message) => message._id !== receivedMessage.message_id
+            )
+          );
+          // After state updates, restore the exact same scroll position
+          requestAnimationFrame(() => {
+            container.scrollTop = oldScrollTop;
+          });
+
+          if (receivedMessage.type === "begMessageDeletedConfirmation") {
+            toast.success("Message deleted by admin!");
+          }
         }
       } catch (error) {
         toast.error("Error parsing message");
@@ -785,6 +813,29 @@ export default function Home() {
     cooldownSeconds,
     connected,
   ]);
+
+  const deleteBegMessage = (messageId: string) => {
+    try {
+      if (
+        websocketRef.current &&
+        websocketRef.current.readyState === WebSocket.OPEN
+      ) {
+        websocketRef.current.send(
+          JSON.stringify({
+            action: "deleteBegMessage",
+            messageId,
+            walletAddress,
+          })
+        );
+        console.log(`Delete request sent for message: ${messageId}`);
+      } else {
+        console.error("WebSocket connection not open");
+        toast.error("Connection error. Please refresh the page.");
+      }
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
 
   const copyText = useCallback(async (address: string, messageId: string) => {
     await navigator.clipboard.writeText(address ?? "");
@@ -1326,6 +1377,22 @@ export default function Home() {
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-center gap-2">
+                                    {adminWallets.length &&
+                                    connected &&
+                                    adminWallets.includes(
+                                      publicKey?.toBase58()!
+                                    ) ? (
+                                      <>
+                                        <img
+                                          src="/assets/delete-icon.svg"
+                                          alt="delete"
+                                          className="w-4 h-4 cursor-pointer"
+                                          onClick={() =>
+                                            deleteBegMessage(msg._id)
+                                          }
+                                        />
+                                      </>
+                                    ) : null}
                                     <span className="flex items-center justify-center gap-[2px]">
                                       <img
                                         src="/assets/solana-brown-icon.svg"
