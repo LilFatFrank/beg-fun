@@ -952,6 +952,18 @@ export default function Home() {
         toast.info("Connect wallet to donate!");
         return;
       }
+      // Validate recipient address is a valid base58 string
+      if (!detectSolanaAddress(recipientAddress)) {
+        toast.error("Invalid recipient wallet address");
+        return;
+      }
+
+      // Validate admin account address is a valid base58 string
+      if (!process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT || 
+          !detectSolanaAddress(process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT)) {
+        toast.error("Invalid admin wallet address");
+        return;
+      }
 
       setDonatingMessageId(messageId);
 
@@ -1138,6 +1150,13 @@ export default function Home() {
       toast.info("Connect wallet to donate!");
       return;
     }
+    
+    // Validate recipient address is a valid base58 string
+    if (!detectSolanaAddress(recipientAddress)) {
+      toast.error("Invalid recipient wallet address");
+      return;
+    }
+    
     setDonateModal({
       isOpen: true,
       recipientAddress,
