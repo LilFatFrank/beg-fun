@@ -1539,7 +1539,7 @@ export default function Home() {
                               setIsInputAreaOpen(false);
                               setMessageText("");
                               setSolAmount("");
-                              setWalletAddress("");
+                              if (!connected) setWalletAddress("");
                             }}
                             className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none"
                           >
