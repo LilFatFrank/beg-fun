@@ -326,7 +326,7 @@ const DonateModal = ({
                       : "#000000",
                 }}
               >
-                {Number(fillAmount).toFixed(2)} / {solAmount} sol
+                {Number(fillAmount).toFixed(4)} / {solAmount} sol
               </span>
             </div>
           </div>
@@ -635,21 +635,57 @@ export default function Home() {
       try {
         const receivedMessage = JSON.parse(event.data);
 
-        if (receivedMessage.walletAddress && receivedMessage.text) {
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            {
-              walletAddress: receivedMessage.walletAddress,
-              text: receivedMessage.text,
-              solAmount: receivedMessage.solAmount,
-              _id: receivedMessage.message_id,
-              begStatus: receivedMessage.begStatus,
-              timestamp: receivedMessage.timestamp,
-              voiceType: receivedMessage.voiceType || "Indian",
-              voiceId: receivedMessage.voiceId || voiceIds.Indian[0],
-              fillAmount: receivedMessage.fillAmount || "0",
-            },
-          ]);
+        if (
+          receivedMessage.type === "begMessage" ||
+          receivedMessage.type === "begMessageConfirmation"
+        ) {
+          // Handle new beg messages and check for duplicates
+          setMessages((prevMessages) => {
+            // Check if message with this ID already exists
+            const messageExists = prevMessages.some(msg => msg._id === receivedMessage.message_id);
+            if (messageExists) {
+              return prevMessages; // Don't add duplicate message
+            }
+            
+            // Add new message
+            return [
+              ...prevMessages,
+              {
+                walletAddress: receivedMessage.walletAddress,
+                text: receivedMessage.text,
+                solAmount: receivedMessage.solAmount,
+                _id: receivedMessage.message_id,
+                begStatus: receivedMessage.begStatus,
+                timestamp: receivedMessage.timestamp,
+                voiceType: receivedMessage.voiceType || "Indian",
+                voiceId: receivedMessage.voiceId || voiceIds.Indian[0],
+                fillAmount: receivedMessage.fillAmount || "0",
+              },
+            ];
+          });
+        }
+        // Handle message updates
+        else if (
+          receivedMessage.type === "begMessageUpdate" ||
+          receivedMessage.type === "begMessageUpdateConfirmation"
+        ) {
+          toast.success(
+            `Donation of ${Number(receivedMessage.fillAmount).toFixed(
+              4
+            )} sol successful!`
+          );
+          // Update an existing message
+          setMessages((prevMessages) =>
+            prevMessages.map((message) =>
+              message._id === receivedMessage.message_id
+                ? {
+                    ...message,
+                    begStatus: receivedMessage.begStatus,
+                    fillAmount: receivedMessage.fillAmount || "0",
+                  }
+                : message
+            )
+          );
         }
       } catch (error) {
         toast.error("Error parsing message");
@@ -994,46 +1030,16 @@ export default function Home() {
       const newFillAmount = Number(currentMessage.fillAmount) + Number(amount);
       const isFilled = newFillAmount >= Number(currentMessage.solAmount);
 
-      // Update message status after successful donation
-      const response = await fetch(
-        "https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      websocketRef.current?.send(
+        JSON.stringify({
+          action: "updateBegMessage",
+          messageId,
+          walletAddress,
+          updates: {
+            begStatus: isFilled ? "completed" : "pending",
+            fillAmount: newFillAmount.toString(),
           },
-          body: JSON.stringify({
-            method: "update_beg_message",
-            messageId: messageId,
-            walletAddress: recipientAddress,
-            updates: {
-              begStatus: isFilled ? "completed" : "pending",
-              fillAmount: newFillAmount.toString(),
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("Failed to update message status:", data);
-        toast.error("Donation sent but failed to update status");
-        return;
-      }
-
-      toast.success("Donation successful!");
-
-      // Update the message status and fillAmount in the local state
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg._id === messageId
-            ? {
-                ...msg,
-                begStatus: isFilled ? "completed" : "pending",
-                fillAmount: newFillAmount.toString(),
-              }
-            : msg
-        )
+        })
       );
     } catch (error) {
       toast.error("Could not make donation!");
@@ -1267,7 +1273,7 @@ export default function Home() {
                           )}
                           {messages.map((msg, index) => (
                             <div
-                              key={msg._id}
+                              key={`${msg._id}-${index}`}
                               className="mb-4 p-3 sm:p-4 w-full mx-auto border border-[#FF9933] rounded-[8px] bg-white"
                             >
                               <div className="flex flex-col gap-2">
@@ -1403,7 +1409,7 @@ export default function Home() {
                                               : "#000000",
                                         }}
                                       >
-                                        {Number(msg.fillAmount).toFixed(2)} /{" "}
+                                        {Number(msg.fillAmount).toFixed(4)} /{" "}
                                         {msg.solAmount} sol
                                       </span>
                                     </div>
@@ -1859,8 +1865,10 @@ const SocialLinks = ({ isMobile = false }) => (
   <>
     <div
       className={`${
-        isMobile ? "w-full lg:hidden flex pt-3" : "lg:flex hidden"
-      } items-center justify-end gap-2`}
+        isMobile
+          ? "w-full lg:hidden flex pt-3 justify-center"
+          : "lg:flex hidden justify-end"
+      } items-center gap-2`}
     >
       {process.env.NEXT_PUBLIC_PUMP_ADD ? (
         <Link
