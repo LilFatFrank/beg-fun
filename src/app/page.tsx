@@ -85,12 +85,10 @@ const PlayPauseButton = ({
   text,
   voiceId,
   className,
-  ref,
 }: {
   text: string;
   voiceId: string;
   className?: string;
-  ref?: React.RefObject<{ play: () => Promise<void> } | null>;
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
@@ -159,15 +157,6 @@ const PlayPauseButton = ({
       setIsLoading(false);
     }
   };
-
-  // Expose play function through ref
-  useEffect(() => {
-    if (ref) {
-      ref.current = {
-        play: handlePlayPause,
-      };
-    }
-  }, [ref]);
 
   useEffect(() => {
     return () => {
@@ -495,7 +484,6 @@ export default function Home() {
   const [solAmount, setSolAmount] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [lastActive, setLastActive] = useState<number>(Date.now());
-  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
@@ -503,7 +491,6 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const websocketRetries = useRef(0);
   const idleCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const latestMessageRef = useRef<{ play: () => Promise<void> } | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [isInCooldown, setIsInCooldown] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -663,15 +650,6 @@ export default function Home() {
               fillAmount: receivedMessage.fillAmount || "0",
             },
           ]);
-
-          // Auto-play only if enabled
-          if (autoplayEnabled) {
-            setTimeout(() => {
-              if (latestMessageRef.current) {
-                latestMessageRef.current.play();
-              }
-            }, 100);
-          }
         }
       } catch (error) {
         toast.error("Error parsing message");
@@ -695,7 +673,7 @@ export default function Home() {
     websocketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
     };
-  }, [autoplayEnabled]);
+  }, []);
 
   const handleSendMessage = useCallback(() => {
     try {
@@ -867,16 +845,9 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [isInCooldown]);
 
-  // Initialize autoplay and music from localStorage
+  // Initialize music from localStorage
   useEffect(() => {
-    const savedAutoplay = localStorage.getItem("autoplay-beg-voices");
     const savedMusic = localStorage.getItem("autoplay-beg-music");
-
-    if (savedAutoplay === null) {
-      localStorage.setItem("autoplay-beg-voices", "true");
-    } else {
-      setAutoplayEnabled(savedAutoplay === "true");
-    }
 
     if (savedMusic === null) {
       localStorage.setItem("autoplay-beg-music", "true");
@@ -893,11 +864,6 @@ export default function Home() {
       setWalletAddress("");
     }
   }, [publicKey]);
-
-  const handleAutoplayChange = (checked: boolean) => {
-    setAutoplayEnabled(checked);
-    localStorage.setItem("autoplay-beg-voices", String(checked));
-  };
 
   const handleMusicChange = (checked: boolean) => {
     setMusicEnabled(checked);
@@ -1202,9 +1168,7 @@ export default function Home() {
             </div>
             <AudioOptions
               musicEnabled={musicEnabled}
-              handleAutoplayChange={handleAutoplayChange}
               handleMusicChange={handleMusicChange}
-              autoplayEnabled={autoplayEnabled}
             />
           </div>
 
@@ -1265,9 +1229,7 @@ export default function Home() {
                 <div className="overflow-y-auto">
                   <AudioOptions
                     musicEnabled={musicEnabled}
-                    handleAutoplayChange={handleAutoplayChange}
                     handleMusicChange={handleMusicChange}
-                    autoplayEnabled={autoplayEnabled}
                     isMobile={true}
                   />
                   <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
@@ -1392,11 +1354,6 @@ export default function Home() {
                                   <PlayPauseButton
                                     text={msg.text}
                                     voiceId={msg.voiceId}
-                                    ref={
-                                      index === messages.length - 1
-                                        ? latestMessageRef
-                                        : undefined
-                                    }
                                     className="flex-shrink-0"
                                   />
                                   <MessageText text={msg.text} />
@@ -1991,14 +1948,10 @@ const DonateButton = ({
 );
 
 const AudioOptions = ({
-  autoplayEnabled,
-  handleAutoplayChange,
   musicEnabled,
   handleMusicChange,
   isMobile,
 }: {
-  autoplayEnabled: boolean;
-  handleAutoplayChange: (checked: boolean) => void;
   musicEnabled: boolean;
   handleMusicChange: (checked: boolean) => void;
   isMobile?: boolean;
@@ -2008,14 +1961,6 @@ const AudioOptions = ({
       isMobile ? "mb-4" : ""
     }`}
   >
-    <div className="flex items-center justify-center gap-2">
-      <Switch
-        size="small"
-        checked={autoplayEnabled}
-        onCheckedChange={handleAutoplayChange}
-      />
-      <span className="text-black">Auto-Play voices</span>
-    </div>
     <div className="flex items-center justify-center gap-2">
       <Switch
         size="small"
