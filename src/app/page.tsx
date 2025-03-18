@@ -35,12 +35,12 @@ const voiceIds = {
 const getRandomVoiceType = () => {
   // 60% chance to select Indian voice type
   const indianBias = 0.6;
-  
+
   if (Math.random() < indianBias) {
     return "Indian";
   } else {
     // For the remaining 30%, choose randomly between Nigerian and Chinese
-    const otherTypes = voiceTypes.filter(type => type !== "Indian");
+    const otherTypes = voiceTypes.filter((type) => type !== "Indian");
     const randomIndex = Math.floor(Math.random() * otherTypes.length);
     return otherTypes[randomIndex];
   }
@@ -959,8 +959,10 @@ export default function Home() {
       }
 
       // Validate admin account address is a valid base58 string
-      if (!process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT || 
-          !detectSolanaAddress(process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT)) {
+      if (
+        !process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT ||
+        !detectSolanaAddress(process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT)
+      ) {
         toast.error("Invalid admin wallet address");
         return;
       }
@@ -1150,13 +1152,13 @@ export default function Home() {
       toast.info("Connect wallet to donate!");
       return;
     }
-    
+
     // Validate recipient address is a valid base58 string
     if (!detectSolanaAddress(recipientAddress)) {
       toast.error("Invalid recipient wallet address");
       return;
     }
-    
+
     setDonateModal({
       isOpen: true,
       recipientAddress,
@@ -1616,32 +1618,34 @@ export default function Home() {
           {/* First set of items */}
           {process.env.NEXT_PUBLIC_PUMP_ADD ? (
             <>
-              {Array(5).fill(null).map((_, i) => (
-                <React.Fragment key={`first-extended-${i}`}>
-                  <span className="mx-4 text-[#5D3014] font-bold">
-                    it ain't gay, it ain't racist, it's finance fellas
-                  </span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                  <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                  <span className="mx-4 text-[#5D3014] font-bold">
-                    ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
-                  </span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                </React.Fragment>
-              ))}
+              {Array(5)
+                .fill(null)
+                .map((_, i) => (
+                  <React.Fragment key={`first-extended-${i}`}>
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      it ain't gay, it ain't racist, it's finance fellas
+                    </span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                    <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
+                    </span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                  </React.Fragment>
+                ))}
             </>
           ) : (
             <>
@@ -1649,7 +1653,9 @@ export default function Home() {
                 .fill("it ain't gay, it ain't racist, it's finance fellas")
                 .map((text, i) => (
                   <React.Fragment key={`first-${i}`}>
-                    <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      {text}
+                    </span>
                     <img
                       src="/assets/mcd-bottom-bar-icon.svg"
                       alt="mcd"
@@ -1662,32 +1668,34 @@ export default function Home() {
           {/* Duplicate set for seamless loop */}
           {process.env.NEXT_PUBLIC_PUMP_ADD ? (
             <>
-              {Array(5).fill(null).map((_, i) => (
-                <React.Fragment key={`second-extended-${i}`}>
-                  <span className="mx-4 text-[#5D3014] font-bold">
-                    it ain't gay, it ain't racist, it's finance fellas
-                  </span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                  <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                  <span className="mx-4 text-[#5D3014] font-bold">
-                    ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
-                  </span>
-                  <img
-                    src="/assets/mcd-bottom-bar-icon.svg"
-                    alt="mcd"
-                    className="w-6 h-6 inline-block"
-                  />
-                </React.Fragment>
-              ))}
+              {Array(5)
+                .fill(null)
+                .map((_, i) => (
+                  <React.Fragment key={`second-extended-${i}`}>
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      it ain't gay, it ain't racist, it's finance fellas
+                    </span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                    <span className="mx-4 text-[#5D3014] font-bold">$BEGS</span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      ca: {process.env.NEXT_PUBLIC_PUMP_ADD}
+                    </span>
+                    <img
+                      src="/assets/mcd-bottom-bar-icon.svg"
+                      alt="mcd"
+                      className="w-6 h-6 inline-block"
+                    />
+                  </React.Fragment>
+                ))}
             </>
           ) : (
             <>
@@ -1695,7 +1703,9 @@ export default function Home() {
                 .fill("it ain't gay, it ain't racist, it's finance fellas")
                 .map((text, i) => (
                   <React.Fragment key={`second-${i}`}>
-                    <span className="mx-4 text-[#5D3014] font-bold">{text}</span>
+                    <span className="mx-4 text-[#5D3014] font-bold">
+                      {text}
+                    </span>
                     <img
                       src="/assets/mcd-bottom-bar-icon.svg"
                       alt="mcd"
@@ -1802,10 +1812,11 @@ const RoadMapInfo = () => (
 const NoteInfo = () => (
   <>
     <div className="bg-[#5D3014] rounded-[8px] p-4">
-      <p className="text-[18px] text-white font-bold mb-3">Note:</p>
-      <p className="text-[16px] text-white">
-        The team will hold 10% of the supply for rewards and building out the
-        platform!
+      <p className="text-[18px] text-[#FFD44F] font-bold mb-3">Note:</p>
+      <p className="text-[16px] text-white font-bold">5% tokens are locked!</p>
+      <hr className="w-full h-0 border-[0.5px] border-white opacity-100 my-4" />
+      <p className="text-[16px] text-white font-bold">
+        5% of the supply are for rewards and building out the platform!
       </p>
     </div>
   </>
@@ -1961,8 +1972,8 @@ const DonateButton = ({
       }
       disabled={donatingMessageId === msg._id}
       className={`${
-        isMobile ? "flex lg:hidden" : "hidden lg:flex"
-      } bg-black cursor-pointer py-[2px] px-2 w-fit rounded-[8px] items-center justify-center gap-2 disabled:opacity-70`}
+        isMobile ? "flex lg:hidden w-full" : "hidden lg:flex w-fit"
+      } bg-black cursor-pointer py-[2px] px-2 rounded-[8px] items-center justify-center gap-2 disabled:opacity-70`}
       style={{
         filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
       }}
