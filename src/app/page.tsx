@@ -33,6 +33,40 @@ const voiceIds = {
   Chinese: ["mbL34QDB5FptPamlgvX5"],
 };
 
+interface ReactionsType {
+  floor_rolling_laugh: number;
+  fire: number;
+  crying_face: number;
+  angry_sad_unhappy: number;
+  poop: number;
+  clown: number;
+}
+
+const reactions = [
+  {
+    val: "floor_rolling_laugh",
+    icon: "/assets/laughing-emoji-icon.svg",
+    color: "#F8D75A",
+  },
+  { val: "fire", icon: "/assets/fire-emoji-icon.svg", color: "#4EAB5E" },
+  { val: "crying_face", icon: "crying-emoji-icon", color: "#A7AAF2" },
+  {
+    val: "angry_sad_unhappy",
+    icon: "/assets/angry-emoji-icon.svg",
+    color: "#F27360",
+  },
+  {
+    val: "poop",
+    icon: "/assets/poop-emoji-icon.svg",
+    color: "#EFB03D",
+  },
+  {
+    val: "clown",
+    icon: "/assets/clown-emoji-icon.svg",
+    color: "#F2A7B0",
+  },
+];
+
 const getRandomVoiceType = () => {
   // 60% chance to select Indian voice type
   const indianBias = 0.6;
@@ -516,6 +550,9 @@ export default function Home() {
     messageId: "",
     fillAmount: "",
   });
+  const [reactionsMessageId, setReactionsMessageId] = useState<string | null>(
+    null
+  );
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
@@ -543,7 +580,7 @@ export default function Home() {
       );
       const data = await response.json();
       setMessages(
-        data.messages
+        data.data
           .map((d: any) => ({
             walletAddress: d.walletAddress,
             text: d.text,
@@ -585,7 +622,7 @@ export default function Home() {
       const data = await response.json();
 
       setMessages((prevMessages) => [
-        ...data.messages
+        ...data.data
           .map((d: any) => ({
             walletAddress: d.walletAddress,
             text: d.text,
@@ -984,19 +1021,6 @@ export default function Home() {
     }
   };
 
-  const begDisabled = useMemo(() => {
-    const words = getWordCount(messageText);
-    return (
-      !messageText ||
-      words < MIN_WORDS ||
-      words > MAX_WORDS ||
-      !solAmount ||
-      (walletAddress && !detectSolanaAddress(walletAddress)) ||
-      !walletAddress ||
-      isInCooldown
-    );
-  }, [messageText, solAmount, walletAddress, isInCooldown]);
-
   const handleDonate = async (
     recipientAddress: string,
     amount: string,
@@ -1204,7 +1228,10 @@ export default function Home() {
 
   return (
     <>
-      <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
+      <div
+        className="container h-[calc(100vh-40px)] mx-auto flex flex-col"
+        // onClick={() => setReactionsMessageId(null)}
+      >
         {/* Main container with 3 columns */}
         <div className="flex gap-4 md:gap-6 lg:gap-[48px] py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
           {/* Left section - hidden on mobile */}
@@ -1487,35 +1514,70 @@ export default function Home() {
                                     isMobile={true}
                                   />
                                 )}
-                                <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
-                                  <div
-                                    className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
-                                    style={{
-                                      width: `${Math.min(
-                                        100,
-                                        (Number(msg.fillAmount) /
-                                          Number(msg.solAmount)) *
-                                          100
-                                      )}%`,
+                                {/* <div className="flex items-center justify-start gap-2"> */}
+                                  {/* <div
+                                    className="relative"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReactionsMessageId(msg._id);
                                     }}
-                                  />
-                                  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
-                                    <div className="relative z-10 mr-[12px] text-[12px] font-medium">
-                                      <span
-                                        className="text-[#000000]"
-                                        style={{
-                                          color:
-                                            (Number(msg.fillAmount) /
-                                              Number(msg.solAmount)) *
-                                              100 >=
-                                            95
-                                              ? "#FFFFFF"
-                                              : "#000000",
-                                        }}
-                                      >
-                                        {Number(msg.fillAmount).toFixed(4)} /{" "}
-                                        {msg.solAmount} sol
-                                      </span>
+                                  >
+                                    {reactionsMessageId === msg._id ? (
+                                      <div className="absolute left-0 bottom-[120%] rounded-[2000px] py-2 px-4 bg-[#FFEFBD] flex items-center gap-2">
+                                        {reactions.map((r) => (
+                                          <div
+                                            key={r.val}
+                                            className={`p-1 rounded-full border bg-white`}
+                                            style={{ borderColor: r.color }}
+                                          >
+                                            <img
+                                              src={r.icon}
+                                              alt={r.val}
+                                              style={{
+                                                width: "16px",
+                                                height: "16px",
+                                              }}
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    <img
+                                      src="/assets/reactions-icon.svg"
+                                      about="reaction"
+                                      className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
+                                    />
+                                  </div> */}
+                                  <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
+                                    <div
+                                      className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
+                                      style={{
+                                        width: `${Math.min(
+                                          100,
+                                          (Number(msg.fillAmount) /
+                                            Number(msg.solAmount)) *
+                                            100
+                                        )}%`,
+                                      }}
+                                    />
+                                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
+                                      <div className="relative z-10 mr-[12px] text-[12px] font-medium">
+                                        <span
+                                          className="text-[#000000]"
+                                          style={{
+                                            color:
+                                              (Number(msg.fillAmount) /
+                                                Number(msg.solAmount)) *
+                                                100 >=
+                                              95
+                                                ? "#FFFFFF"
+                                                : "#000000",
+                                          }}
+                                        >
+                                          {Number(msg.fillAmount).toFixed(4)} /{" "}
+                                          {msg.solAmount} sol
+                                        </span>
+                                      {/* </div> */}
                                     </div>
                                   </div>
                                 </div>
@@ -1931,14 +1993,16 @@ const ConnectedState = ({
         className={isMobile ? "w-3 h-3" : "w-6 h-6"}
       />
       <p
-        className={`text-[#5D3014] ${isMobile ? "text-[9px]" : "text-[16px]"}`}
+        className={`text-[#5D3014] ${
+          isMobile ? "text-[9px]" : "text-[16px]"
+        } overflow-hidden`}
       >
         {address.slice(0, 4)}...
         {address.slice(-4)}
       </p>
     </div>
     <div
-      className={`rounded-[8px] h-full ${
+      className={`flex-shrink-0 rounded-[8px] h-full ${
         isMobile ? "w-6" : "w-10"
       } cursor-pointer flex items-center justify-center bg-[#FF9933]`}
       onClick={disconnect}
@@ -1956,10 +2020,8 @@ const SocialLinks = ({ isMobile = false }) => (
   <>
     <div
       className={`${
-        isMobile
-          ? "w-full lg:hidden flex pt-3 justify-center"
-          : "lg:flex hidden justify-end"
-      } items-center gap-2`}
+        isMobile ? "w-full lg:hidden flex pt-3" : "lg:flex hidden"
+      } items-center gap-2 justify-center`}
     >
       {process.env.NEXT_PUBLIC_PUMP_ADD ? (
         <>
