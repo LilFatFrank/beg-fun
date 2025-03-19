@@ -24,6 +24,14 @@ const LiveChat = () => {
   const websocketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const websocketRetries = useRef(0);
+  
+  // Admin wallet addresses
+  const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
+    ? process.env.NEXT_PUBLIC_ADMIN_WALLETS.split(",")
+    : [];
+  
+  // Check if current wallet is admin
+  const isAdmin = publicKey && adminWallets.includes(publicKey.toBase58());
 
   // Fetch initial messages
   useEffect(() => {
@@ -214,7 +222,12 @@ const LiveChat = () => {
 
   const handleDeleteMessage = (messageId: string) => {
     if (!publicKey) {
-      toast.error("Please connect your wallet to delete messages");
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    if (!isAdmin) {
+      toast.error("Only admins can delete messages");
       return;
     }
 
@@ -295,7 +308,7 @@ const LiveChat = () => {
                   >
                     {msg.walletAddress.slice(0, 4)}...
                     {msg.walletAddress.slice(-4)}
-                    {msg.walletAddress === publicKey?.toBase58() && (
+                    {isAdmin && (
                       <img
                         src="/assets/delete-icon.svg"
                         alt="delete"
