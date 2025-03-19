@@ -1965,8 +1965,12 @@ const SocialLinks = ({ isMobile = false }) => (
               }}
             />
           </Link>
+        </>
+      ) : null}
+      {process.env.NEXT_PUBLIC_DEXTOOLS ? (
+        <>
           <Link
-            href={`https://dexscreener.com/solana/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+            href={process.env.NEXT_PUBLIC_DEXTOOLS}
             target="_blank"
             rel="noreferrer noopener nofollower"
           >
