@@ -10,6 +10,7 @@ import { format, isToday, parseISO } from "date-fns";
 import { Switch } from "@/components/Switch";
 import { toast } from "sonner";
 import Link from "next/link";
+import LiveChat from "@/components/LiveChat";
 
 const solAmounts = ["0.1", "0.5", "1", "5", "10", "100"];
 
@@ -1292,7 +1293,6 @@ export default function Home() {
                   <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
                     <RoadMapInfo />
                   </div>
-                  <NoteInfo />
                 </div>
               ) : process.env.NEXT_PUBLIC_ERROR_SCREEN ? (
                 <>
@@ -1462,7 +1462,7 @@ export default function Home() {
                                     isMobile={true}
                                   />
                                 )}
-                                <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[8px] overflow-hidden">
+                                <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
                                   <div
                                     className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
                                     style={{
@@ -1637,7 +1637,7 @@ export default function Home() {
 
           {/* Right section - hidden on mobile */}
           <div className="hidden lg:block w-[27%]">
-            <div className="flex items-end justify-end flex-col gap-6">
+            <div className="flex items-end justify-end flex-col gap-6 h-full">
               {connected ? (
                 <div className="flex items-center gap-2 h-10">
                   <ConnectedState
@@ -1650,7 +1650,7 @@ export default function Home() {
               )}
               <SocialLinks />
               <img src="/assets/begs-meme-icon.svg" alt="begs" />
-              <NoteInfo />
+              <LiveChat />
             </div>
           </div>
         </div>
@@ -1847,19 +1847,6 @@ const RoadMapInfo = () => (
         20M- Livestream
       </p>
       <p className="text-[16px] text-black">Beggars can livestream</p>
-    </div>
-  </>
-);
-
-const NoteInfo = () => (
-  <>
-    <div className="bg-[#5D3014] rounded-[8px] p-4">
-      <p className="text-[18px] text-[#FFD44F] font-bold mb-3">Note:</p>
-      <p className="text-[16px] text-white font-bold">5% tokens are locked!</p>
-      <hr className="w-full h-0 border-[0.5px] border-white opacity-100 my-4" />
-      <p className="text-[16px] text-white font-bold">
-        5% of the supply are for rewards and building out the platform!
-      </p>
     </div>
   </>
 );
