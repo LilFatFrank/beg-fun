@@ -310,7 +310,7 @@ const LiveChat = () => {
                     {msg.walletAddress.slice(-4)}
                     {isAdmin && (
                       <img
-                        src="/assets/delete-icon.svg"
+                        src="/assets/delete-chat-icon.svg"
                         alt="delete"
                         className="w-4 h-4 cursor-pointer inline-block ml-2 relative bottom-[2px]"
                         onClick={() => handleDeleteMessage(msg._id)}
