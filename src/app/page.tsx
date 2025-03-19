@@ -496,6 +496,7 @@ export default function Home() {
   const [isInCooldown, setIsInCooldown] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [mobileMcdViewOpen, setMobileMcdViewOpen] = useState(false);
+  const [liveChatOpen, setLiveChatOpen] = useState(false);
   const { publicKey, sendTransaction, connected, disconnect } = useWallet();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [donatingMessageId, setDonatingMessageId] = useState<string | null>(
@@ -1250,30 +1251,52 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="flex lg:hidden items-center justify-center gap-1">
-                  {connected ? (
-                    <div className="flex lg:hidden items-center justify-center gap-1 h-6">
-                      <ConnectedState
-                        address={publicKey?.toBase58() ?? ""}
-                        disconnect={disconnect}
-                        isMobile={true}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex lg:hidden items-center justify-center">
-                      <ConnectButton isMobile={true} />
-                    </div>
+                  {liveChatOpen ? null : (
+                    <>
+                      {connected ? (
+                        <div className="flex lg:hidden items-center justify-center gap-1 h-6">
+                          <ConnectedState
+                            address={publicKey?.toBase58() ?? ""}
+                            disconnect={disconnect}
+                            isMobile={true}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex lg:hidden items-center justify-center">
+                          <ConnectButton isMobile={true} />
+                        </div>
+                      )}
+                      <span
+                        className="lg:hidden"
+                        onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
+                      >
+                        <img
+                          src={
+                            mobileMcdViewOpen
+                              ? "/assets/mobile-close-icon.svg"
+                              : "/assets/mobile-mcd-icon.svg"
+                          }
+                          alt={mobileMcdViewOpen ? "close" : "mcd"}
+                          className="w-6 h-6"
+                          style={{
+                            filter:
+                              "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                          }}
+                        />
+                      </span>
+                    </>
                   )}
                   <span
                     className="lg:hidden"
-                    onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
+                    onClick={() => setLiveChatOpen(!liveChatOpen)}
                   >
                     <img
                       src={
-                        mobileMcdViewOpen
+                        liveChatOpen
                           ? "/assets/mobile-close-icon.svg"
-                          : "/assets/mobile-mcd-icon.svg"
+                          : "/assets/chat-icon.svg"
                       }
-                      alt={mobileMcdViewOpen ? "close" : "mcd"}
+                      alt={liveChatOpen ? "close" : "mcd"}
                       className="w-6 h-6"
                       style={{
                         filter:
@@ -1283,7 +1306,7 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-              {mobileMcdViewOpen ? (
+              {liveChatOpen ? <LiveChat /> : mobileMcdViewOpen ? (
                 <div className="overflow-y-auto">
                   <AudioOptions
                     musicEnabled={musicEnabled}
