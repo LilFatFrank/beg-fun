@@ -1306,7 +1306,9 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-              {liveChatOpen ? <LiveChat /> : mobileMcdViewOpen ? (
+              {liveChatOpen ? (
+                <LiveChat />
+              ) : mobileMcdViewOpen ? (
                 <div className="overflow-y-auto">
                   <AudioOptions
                     musicEnabled={musicEnabled}
@@ -1661,18 +1663,18 @@ export default function Home() {
           {/* Right section - hidden on mobile */}
           <div className="hidden lg:block w-[27%]">
             <div className="flex items-end justify-end flex-col gap-6 h-full">
-              {connected ? (
-                <div className="flex items-center gap-2 h-10">
+              <div className="flex items-center gap-2 h-10">
+                <img src="/assets/begs-token-icon.svg" alt="begs" />
+                {connected ? (
                   <ConnectedState
                     address={publicKey?.toBase58() ?? ""}
                     disconnect={disconnect}
                   />
-                </div>
-              ) : (
-                <ConnectButton />
-              )}
+                ) : (
+                  <ConnectButton />
+                )}
+              </div>
               <SocialLinks />
-              <img src="/assets/begs-meme-icon.svg" alt="begs" />
               <LiveChat />
             </div>
           </div>

@@ -268,7 +268,7 @@ const LiveChat = () => {
           <p className="text-[18px] text-[#121212] font-bold">beg chat</p>
         </div>
         <img
-          src="https://s5.ezgif.com/tmp/ezgif-56fd3cc3c2fed7.gif"
+          src="/assets/ws-pump.gif"
           alt="pump"
           className="absolute right-0 bottom-[4px] w-20 h-20"
         />
