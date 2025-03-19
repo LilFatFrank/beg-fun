@@ -1950,20 +1950,36 @@ const SocialLinks = ({ isMobile = false }) => (
       } items-center gap-2`}
     >
       {process.env.NEXT_PUBLIC_PUMP_ADD ? (
-        <Link
-          href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
-          target="_blank"
-          rel="noreferrer noopener nofollower"
-        >
-          <img
-            src="/assets/pump-icon.svg"
-            alt="pump"
-            className={isMobile ? "w-6 h-6" : "w-10 h-10"}
-            style={{
-              filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-            }}
-          />
-        </Link>
+        <>
+          <Link
+            href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+            target="_blank"
+            rel="noreferrer noopener nofollower"
+          >
+            <img
+              src="/assets/pump-icon.svg"
+              alt="pump"
+              className={isMobile ? "w-6 h-6" : "w-10 h-10"}
+              style={{
+                filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+              }}
+            />
+          </Link>
+          <Link
+            href={`https://dexscreener.com/solana/${process.env.NEXT_PUBLIC_PUMP_ADD}`}
+            target="_blank"
+            rel="noreferrer noopener nofollower"
+          >
+            <img
+              src="/assets/dexscreener-icon.svg"
+              alt="dexscreener"
+              className={isMobile ? "w-6 h-6" : "w-10 h-10"}
+              style={{
+                filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+              }}
+            />
+          </Link>
+        </>
       ) : null}
       <Link
         href={`https://x.com/begsfun`}
