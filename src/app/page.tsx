@@ -1294,6 +1294,18 @@ export default function Home() {
                   </div>
                   <NoteInfo />
                 </div>
+              ) : process.env.NEXT_PUBLIC_ERROR_SCREEN ? (
+                <>
+                  <div className="grow flex flex-col items-center justify-center gap-2">
+                    <p className="text-[#5D3014] text-[64px] font-bold leading-tight">
+                      Fixing Things 🧰
+                    </p>
+                    <p className="text-[#5D3014] font-medium">
+                      Working on a few updates to improve your begging
+                      experience.
+                    </p>
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Messages container */}
