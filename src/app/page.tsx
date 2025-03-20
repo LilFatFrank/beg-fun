@@ -568,6 +568,7 @@ export default function Home() {
   const [reactionsMessageId, setReactionsMessageId] = useState<string | null>(
     null
   );
+  const messagesCountRef = useRef<number>(0);
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
@@ -988,7 +989,12 @@ export default function Home() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only scroll if the number of messages has increased
+    if (messagesCountRef.current < messages.length) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    // Update the reference to current count
+    messagesCountRef.current = messages.length;
   }, [messages]);
 
   // Cooldown timer effect
@@ -1841,8 +1847,8 @@ export default function Home() {
 
           {/* Right section - hidden on mobile */}
           <div className="hidden lg:block w-[27%]">
-            <div className="flex items-end justify-end flex-col gap-6 h-full">
-              <div className="flex items-center gap-2 h-10">
+            <div className="flex flex-col h-full">
+              <div className="flex-shrink-0 flex items-center gap-2 h-10 justify-end">
                 <img src="/assets/begs-token-icon.svg" alt="begs" />
                 {connected ? (
                   <ConnectedState
@@ -1853,8 +1859,12 @@ export default function Home() {
                   <ConnectButton />
                 )}
               </div>
-              <SocialLinks />
-              <LiveChat />
+              <div className="flex-shrink-0 flex justify-end mt-6">
+                <SocialLinks />
+              </div>
+              <div className="flex-grow mt-6">
+                <LiveChat />
+              </div>
             </div>
           </div>
         </div>

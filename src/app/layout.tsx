@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/assets/logo-icon.svg",
   },
-  metadataBase: new URL("https://beg-fun.vercel.app"),
+  metadataBase: new URL("https://begsfun.xyz"),
 };
 
 export default function RootLayout({

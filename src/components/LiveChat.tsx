@@ -118,7 +118,9 @@ const LiveChat = () => {
 
             // Scroll to bottom after adding a new message
             setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              if (chatContainerRef.current) {
+                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              }
             }, 100);
           } else if (
             receivedMessage.type === "begLiveMessageDeleted" ||
@@ -175,8 +177,7 @@ const LiveChat = () => {
   useEffect(() => {
     // Scroll to bottom immediately when messages are first loaded
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
     // Also use messagesEndRef for smooth scrolling when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -208,6 +209,26 @@ const LiveChat = () => {
     if (websocketRef.current?.readyState !== WebSocket.OPEN) {
       toast.error("Connection error. Please try again.");
       return;
+    }
+
+    // Check for URLs in the message
+    const urlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
+    const urls = messageText.match(urlRegex);
+    
+    if (urls) {
+      // Check if all URLs are from twitter.com or x.com
+      const hasInvalidUrl = urls.some(url => {
+        const lowerUrl = url.toLowerCase();
+        return !(
+          lowerUrl.includes('twitter.com') || 
+          lowerUrl.includes('x.com')
+        );
+      });
+      
+      if (hasInvalidUrl) {
+        toast.error("Only Twitter or X links are allowed");
+        return;
+      }
     }
 
     const messageData = {
@@ -260,9 +281,63 @@ const LiveChat = () => {
     }
   };
 
+  // Function to render message text with clickable links
+  const renderMessageWithLinks = (text: string) => {
+    // More robust URL regex
+    const urlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
+    
+    if (!text.match(urlRegex)) {
+      return text; // Return plain text if no URLs
+    }
+    
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    // Reset regex before using in a loop
+    urlRegex.lastIndex = 0;
+    
+    while ((match = urlRegex.exec(text)) !== null) {
+      // Add text before the URL
+      if (match.index > lastIndex) {
+        elements.push(
+          <span key={`text-${lastIndex}`}>
+            {text.substring(lastIndex, match.index)}
+          </span>
+        );
+      }
+      
+      // Add the URL as a link
+      elements.push(
+        <a
+          key={`link-${match.index}`}
+          href={match[0]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#3E006F] underline break-all"
+        >
+          {match[0]}
+        </a>
+      );
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text after the last URL
+    if (lastIndex < text.length) {
+      elements.push(
+        <span key={`text-${lastIndex}`}>
+          {text.substring(lastIndex)}
+        </span>
+      );
+    }
+    
+    return elements;
+  };
+
   return (
-    <div className="grow w-full bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col">
-      <div className="py-2 px-3 flex items-center justify-between relative">
+    <div className="w-full flex-grow bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col lg:max-h-[calc(100vh-250px)] max-h-[calc(100vh-200px)]">
+      <div className="flex-shrink-0 py-2 px-3 flex items-center justify-between relative">
         <div className="flex items-center gap-2">
           <img src="/assets/mfer-icon.svg" alt="mfer" className="w-10 h-10" />
           <p className="text-[18px] text-[#121212] font-bold">beg chat</p>
@@ -274,18 +349,13 @@ const LiveChat = () => {
         />
       </div>
       <hr
-        className="w-full h-0 border-[0.5px] opacity-100"
+        className="w-full h-0 border-[0.5px] opacity-100 flex-shrink-0"
         style={{ borderColor: "rgba(93, 48, 20, 0.34)" }}
       />
-      <div className="grow w-full h-full py-2 px-3 flex flex-col items-center justify-between gap-2">
+      <div className="flex-grow w-full flex flex-col items-center justify-between overflow-hidden min-h-0">
         <div
           ref={chatContainerRef}
-          className="grow w-full overflow-y-auto flex flex-col"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-end",
-          }}
+          className="w-full flex-grow overflow-y-auto px-3 py-2 min-h-0"
         >
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
@@ -317,7 +387,9 @@ const LiveChat = () => {
                       />
                     )}
                   </p>
-                  <p className="font-normal text-[14px]">{msg.message}</p>
+                  <p className="font-normal text-[14px]">
+                    {renderMessageWithLinks(msg.message)}
+                  </p>
                   {i !== arr.length - 1 ? (
                     <hr
                       className="w-full h-0 border-[0.5px] opacity-100"
@@ -330,57 +402,59 @@ const LiveChat = () => {
             </div>
           )}
         </div>
-        {connected ? (
-          <div className="flex-shrink-0 h-[40px] w-full p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
-            <input
-              className="grow outline-none border-none p-0 placeholder:text-[#8F95B2] text-[14px]"
-              placeholder="discuss"
-              value={messageText}
-              onChange={handleMessageChange}
-              onKeyDown={handleKeyPress}
-              maxLength={100}
-            />
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-[#8F95B2]">
-                {messageText.length}/100
-              </span>
-              <img
-                src="/assets/send-live-msg-icon.svg"
-                alt="send"
-                className="w-8 h-8 cursor-pointer"
-                onClick={handleSendMessage}
+        <div className="flex-shrink-0 w-full px-3 py-2">
+          {connected ? (
+            <div className="h-[40px] w-full p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
+              <input
+                className="grow outline-none border-none p-0 placeholder:text-[#8F95B2] text-[14px]"
+                placeholder="discuss"
+                value={messageText}
+                onChange={handleMessageChange}
+                onKeyDown={handleKeyPress}
+                maxLength={100}
               />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[#8F95B2]">
+                  {messageText.length}/100
+                </span>
+                <img
+                  src="/assets/send-live-msg-icon.svg"
+                  alt="send"
+                  className="w-8 h-8 cursor-pointer"
+                  onClick={handleSendMessage}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
-          <WalletMultiButton
-            style={{
-              background: "black",
-              cursor: "pointer",
-              padding: "4px 16px",
-              width: "100%",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              color: "#FFD44F",
-              fontWeight: 800,
-              height: "40px",
-            }}
-          >
-            <img
-              src="/assets/solana-yellow-icon.svg"
-              alt="solana"
-              className={"w-6 h-6"}
-            />
-            <span
-              className={`font-[ComicSans] text-[16px] text-[#FFD44F] font-bold`}
+          ) : (
+            <WalletMultiButton
+              style={{
+                background: "black",
+                cursor: "pointer",
+                padding: "4px 16px",
+                width: "100%",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                color: "#FFD44F",
+                fontWeight: 800,
+                height: "40px",
+              }}
             >
-              Connect to chat
-            </span>
-          </WalletMultiButton>
-        )}
+              <img
+                src="/assets/solana-yellow-icon.svg"
+                alt="solana"
+                className={"w-6 h-6"}
+              />
+              <span
+                className={`font-[ComicSans] text-[16px] text-[#FFD44F] font-bold`}
+              >
+                Connect to chat
+              </span>
+            </WalletMultiButton>
+          )}
+        </div>
       </div>
     </div>
   );
