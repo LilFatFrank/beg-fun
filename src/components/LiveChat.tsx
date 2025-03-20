@@ -4,6 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { formatMessageTime } from "@/utils";
 
 type LiveMessage = {
   walletAddress: string;
@@ -24,12 +25,12 @@ const LiveChat = () => {
   const websocketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const websocketRetries = useRef(0);
-  
+
   // Admin wallet addresses
   const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
     ? process.env.NEXT_PUBLIC_ADMIN_WALLETS.split(",")
     : [];
-  
+
   // Check if current wallet is admin
   const isAdmin = publicKey && adminWallets.includes(publicKey.toBase58());
 
@@ -119,7 +120,8 @@ const LiveChat = () => {
             // Scroll to bottom after adding a new message
             setTimeout(() => {
               if (chatContainerRef.current) {
-                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                chatContainerRef.current.scrollTop =
+                  chatContainerRef.current.scrollHeight;
               }
             }, 100);
           } else if (
@@ -177,7 +179,8 @@ const LiveChat = () => {
   useEffect(() => {
     // Scroll to bottom immediately when messages are first loaded
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
     // Also use messagesEndRef for smooth scrolling when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -212,19 +215,19 @@ const LiveChat = () => {
     }
 
     // Check for URLs in the message
-    const urlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
+    const urlRegex =
+      /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
     const urls = messageText.match(urlRegex);
-    
+
     if (urls) {
       // Check if all URLs are from twitter.com or x.com
-      const hasInvalidUrl = urls.some(url => {
+      const hasInvalidUrl = urls.some((url) => {
         const lowerUrl = url.toLowerCase();
         return !(
-          lowerUrl.includes('twitter.com') || 
-          lowerUrl.includes('x.com')
+          lowerUrl.includes("twitter.com") || lowerUrl.includes("x.com")
         );
       });
-      
+
       if (hasInvalidUrl) {
         toast.error("Only Twitter or X links are allowed");
         return;
@@ -284,29 +287,30 @@ const LiveChat = () => {
   // Function to render message text with clickable links
   const renderMessageWithLinks = (text: string) => {
     // More robust URL regex
-    const urlRegex = /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
-    
+    const urlRegex =
+      /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))/gi;
+
     if (!text.match(urlRegex)) {
       return text; // Return plain text if no URLs
     }
-    
+
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
-    
+
     // Reset regex before using in a loop
     urlRegex.lastIndex = 0;
-    
+
     while ((match = urlRegex.exec(text)) !== null) {
       // Add text before the URL
       if (match.index > lastIndex) {
         elements.push(
-          <span key={`text-${lastIndex}`}>
+          <span key={`text-${lastIndex}`} className="text-[#121212]">
             {text.substring(lastIndex, match.index)}
           </span>
         );
       }
-      
+
       // Add the URL as a link
       elements.push(
         <a
@@ -319,19 +323,19 @@ const LiveChat = () => {
           {match[0]}
         </a>
       );
-      
+
       lastIndex = match.index + match[0].length;
     }
-    
+
     // Add any remaining text after the last URL
     if (lastIndex < text.length) {
       elements.push(
-        <span key={`text-${lastIndex}`}>
+        <span key={`text-${lastIndex}`} className="text-[#121212]">
           {text.substring(lastIndex)}
         </span>
       );
     }
-    
+
     return elements;
   };
 
@@ -372,22 +376,30 @@ const LiveChat = () => {
                   key={msg._id}
                   className="w-full flex flex-col items-start justify-start gap-1"
                 >
-                  <p
-                    className="font-bold text-[14px]"
-                    style={{ color: getColorForAddress(msg.walletAddress) }}
-                  >
-                    {msg.walletAddress.slice(0, 4)}...
-                    {msg.walletAddress.slice(-4)}
-                    {isAdmin && (
-                      <img
-                        src="/assets/delete-chat-icon.svg"
-                        alt="delete"
-                        className="w-4 h-4 cursor-pointer inline-block ml-2 relative bottom-[2px]"
-                        onClick={() => handleDeleteMessage(msg._id)}
-                      />
-                    )}
-                  </p>
-                  <p className="font-normal text-[14px]">
+                  <div className="flex w-full items-center justify-between">
+                    <p
+                      className="font-bold text-[14px]"
+                      style={{ color: getColorForAddress(msg.walletAddress) }}
+                    >
+                      {msg.walletAddress.slice(0, 4)}...
+                      {msg.walletAddress.slice(-4)}
+                      {isAdmin && (
+                        <img
+                          src="/assets/delete-chat-icon.svg"
+                          alt="delete"
+                          className="w-4 h-4 cursor-pointer inline-block ml-2 relative bottom-[2px]"
+                          onClick={() => handleDeleteMessage(msg._id)}
+                        />
+                      )}
+                    </p>
+                    <p
+                      className="text-[10px]"
+                      style={{ color: getColorForAddress(msg.walletAddress) }}
+                    >
+                      {formatMessageTime(msg.timestamp)}
+                    </p>
+                  </div>
+                  <p className="font-normal text-[14px] text-[#121212]">
                     {renderMessageWithLinks(msg.message)}
                   </p>
                   {i !== arr.length - 1 ? (
