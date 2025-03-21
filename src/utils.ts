@@ -17,7 +17,7 @@ export const formatMessageTime = (timestamp: string) => {
       if (isToday(localDate)) {
         return format(localDate, "h:mma").toLowerCase(); // Formats like "10:11am"
       }
-      return format(localDate, "do MMM ''yy"); // Formats like "15th Jan '25"
+      return format(localDate, "do MMM"); // Formats like "15th Jan '25"
     } catch (error) {
       console.error("Error formatting date:", error);
       return timestamp; // Return original timestamp if parsing fails

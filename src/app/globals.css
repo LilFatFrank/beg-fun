@@ -31,7 +31,7 @@
 }
 
 body {
-  background: var(--background);
+  background: white;
   color: var(--foreground);
   font-family: "ComicSans", Arial, Helvetica, sans-serif;
 }

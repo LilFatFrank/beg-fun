@@ -317,7 +317,7 @@ const LiveChat = () => {
           key={`link-${match.index}`}
           href={match[0]}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener noreferrer nofollower"
           className="text-[#3E006F] underline break-all"
         >
           {match[0]}
@@ -414,59 +414,59 @@ const LiveChat = () => {
             </div>
           )}
         </div>
-        <div className="flex-shrink-0 w-full px-3 py-2">
-          {connected ? (
-            <div className="h-[40px] w-full p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
-              <input
-                className="grow outline-none border-none p-0 placeholder:text-[#8F95B2] text-[14px]"
-                placeholder="discuss"
-                value={messageText}
-                onChange={handleMessageChange}
-                onKeyDown={handleKeyPress}
-                maxLength={100}
-              />
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#8F95B2]">
-                  {messageText.length}/100
-                </span>
-                <img
-                  src="/assets/send-live-msg-icon.svg"
-                  alt="send"
-                  className="w-8 h-8 cursor-pointer"
-                  onClick={handleSendMessage}
-                />
-              </div>
-            </div>
-          ) : (
-            <WalletMultiButton
-              style={{
-                background: "black",
-                cursor: "pointer",
-                padding: "4px 16px",
-                width: "100%",
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                color: "#FFD44F",
-                fontWeight: 800,
-                height: "40px",
-              }}
-            >
-              <img
-                src="/assets/solana-yellow-icon.svg"
-                alt="solana"
-                className={"w-6 h-6"}
-              />
-              <span
-                className={`font-[ComicSans] text-[16px] text-[#FFD44F] font-bold`}
-              >
-                Connect to chat
+      </div>
+      <div className="flex-shrink-0 w-full px-3 py-2 [&>div]:w-full">
+        {connected ? (
+          <div className="h-[40px] w-full p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
+            <input
+              className="grow outline-none border-none p-0 placeholder:text-[#8F95B2] text-[14px]"
+              placeholder="discuss"
+              value={messageText}
+              onChange={handleMessageChange}
+              onKeyDown={handleKeyPress}
+              maxLength={100}
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[#8F95B2]">
+                {messageText.length}/100
               </span>
-            </WalletMultiButton>
-          )}
-        </div>
+              <img
+                src="/assets/send-live-msg-icon.svg"
+                alt="send"
+                className="w-8 h-8 cursor-pointer"
+                onClick={handleSendMessage}
+              />
+            </div>
+          </div>
+        ) : (
+          <WalletMultiButton
+            style={{
+              background: "black",
+              cursor: "pointer",
+              padding: "4px 16px",
+              width: "100%",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              color: "#FFD44F",
+              fontWeight: 800,
+              height: "40px",
+            }}
+          >
+            <img
+              src="/assets/solana-yellow-icon.svg"
+              alt="solana"
+              className={"w-6 h-6"}
+            />
+            <span
+              className={`font-[ComicSans] text-[16px] text-[#FFD44F] font-bold`}
+            >
+              Connect to chat
+            </span>
+          </WalletMultiButton>
+        )}
       </div>
     </div>
   );

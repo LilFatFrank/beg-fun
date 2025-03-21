@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import LiveChat from "@/components/LiveChat";
 import { formatMessageTime } from "@/utils";
+import { Virtuoso, VirtuosoGrid } from "react-virtuoso";
 
 const solAmounts = ["0.1", "0.5", "1", "5", "10", "100"];
 
@@ -356,12 +357,13 @@ const DonateModal = ({
         </div>
         <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden border border-[#FF9933] mt-2">
           <div
-            className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
+            className="absolute top-0 left-0 h-full transition-all duration-300"
             style={{
               width: `${Math.min(
                 100,
                 (Number(fillAmount) / Number(solAmount)) * 100
               )}%`,
+              background: "linear-gradient(to right, #009A49, #29F188)",
             }}
           />
           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
@@ -432,7 +434,7 @@ const MessageText = ({ text }: { text: string }) => {
       const lineHeight = parseInt(
         window.getComputedStyle(measureElement).lineHeight
       );
-      const wouldOverflow = measureElement.scrollHeight > lineHeight * 2;
+      const wouldOverflow = measureElement.scrollHeight > lineHeight * 4;
       setHasOverflow(wouldOverflow);
     }
   }, [text]);
@@ -451,7 +453,7 @@ const MessageText = ({ text }: { text: string }) => {
         {/* Visible element with truncation */}
         <div
           ref={textRef}
-          className={`text-[12px] sm:text-[14px] break-all line-clamp-2 text-black`}
+          className={`text-[12px] sm:text-[14px] break-all line-clamp-4 text-black`}
         >
           {text}
           {hasOverflow && (
@@ -486,6 +488,7 @@ export default function Home() {
       voiceId: string;
       fillAmount: string;
       reactions: ReactionsType;
+      imageUrl?: string;
     }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -514,7 +517,6 @@ export default function Home() {
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const websocketRetries = useRef(0);
   const idleCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [wordCount, setWordCount] = useState(0);
@@ -544,7 +546,15 @@ export default function Home() {
   const [reactionsMessageId, setReactionsMessageId] = useState<string | null>(
     null
   );
-  const messagesCountRef = useRef<number>(0);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deletingMessageIds, setDeletingMessageIds] = useState<string[]>([]);
+  const [viewImageModal, setViewImageModal] = useState<{isOpen: boolean, imageUrl: string}>({
+    isOpen: false,
+    imageUrl: ''
+  });
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
@@ -563,6 +573,60 @@ export default function Home() {
       .filter((word) => word.length > 0).length;
   };
 
+  // Function to generate presigned URL and upload image
+  const getPresignedUrlAndUpload = async (
+    file: File
+  ): Promise<string | null> => {
+    try {
+      setUploadingImage(true);
+
+      // Request presigned URL
+      const response = await fetch(
+        "https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            method: "generate_upload_url",
+            walletAddress: publicKey?.toBase58() || walletAddress,
+            contentType: file.type,
+            fileExtension: file.name.split(".").pop(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to get presigned URL");
+      }
+
+      const data = await response.json();
+      console.log("Presigned URL response:", data);
+
+      // Upload file to S3 using presigned URL
+      const uploadResponse = await fetch(data.data.uploadUrl, {
+        method: "PUT",
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("Upload failed with status:", uploadResponse.status);
+        console.error("Upload error:", errorText);
+        throw new Error(`Failed to upload image to S3: ${errorText}`);
+      }
+
+      return data.data.imageUrl;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image. Please try again.");
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   // Function to fetch initial messages
   const fetchInitialMessages = useCallback(async () => {
     try {
@@ -572,23 +636,21 @@ export default function Home() {
       );
       const data = await response.json();
       setMessages(
-        data.data
-          .map((d: any) => ({
-            walletAddress: d.walletAddress,
-            text: d.text,
-            solAmount: d.solAmount,
-            _id: d._id,
-            begStatus: d.begStatus,
-            timestamp: d.timestamp,
-            voiceType: d.voiceType || "Indian",
-            voiceId: d.voiceId || voiceIds.Indian[0],
-            fillAmount: d.fillAmount || "0",
-            reactions: d.reactions || {},
-          }))
-          .reverse()
+        data.data.map((d: any) => ({
+          walletAddress: d.walletAddress,
+          text: d.text,
+          solAmount: d.solAmount,
+          _id: d._id,
+          begStatus: d.begStatus,
+          timestamp: d.timestamp,
+          voiceType: d.voiceType || "Indian",
+          voiceId: d.voiceId || voiceIds.Indian[0],
+          fillAmount: d.fillAmount || "0",
+          reactions: d.reactions || {},
+          imageUrl: d.imageUrl || null,
+        }))
       );
       setPagination(data.pagination);
-      console.log("Messages refreshed");
     } catch (error) {
       toast.error("Error fetching initial messages");
       console.error("Error fetching initial messages:", error);
@@ -604,39 +666,28 @@ export default function Home() {
       setIsLoadingMore(true);
       const nextPage = pagination.page + 1;
 
-      // Store the current scroll position
-      const container = document.getElementById("messages-container");
-      if (!container) return;
-      const oldScrollTop = container.scrollTop;
-
       const response = await fetch(
         `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_messages&page=${nextPage}&limit=${pagination.limit}`
       );
       const data = await response.json();
 
       setMessages((prevMessages) => [
-        ...data.data
-          .map((d: any) => ({
-            walletAddress: d.walletAddress,
-            text: d.text,
-            solAmount: d.solAmount,
-            _id: d._id,
-            begStatus: d.begStatus,
-            timestamp: d.timestamp,
-            voiceType: d.voiceType || "Indian",
-            voiceId: d.voiceId || voiceIds.Indian[0],
-            fillAmount: d.fillAmount || "0",
-            reactions: d.reactions || {},
-          }))
-          .reverse(),
         ...prevMessages,
+        ...data.data.map((d: any) => ({
+          walletAddress: d.walletAddress,
+          text: d.text,
+          solAmount: d.solAmount,
+          _id: d._id,
+          begStatus: d.begStatus,
+          timestamp: d.timestamp,
+          voiceType: d.voiceType || "Indian",
+          voiceId: d.voiceId || voiceIds.Indian[0],
+          fillAmount: d.fillAmount || "0",
+          reactions: d.reactions || {},
+          imageUrl: d.imageUrl || null,
+        })),
       ]);
       setPagination(data.pagination);
-
-      // After state updates, restore the exact same scroll position
-      requestAnimationFrame(() => {
-        container.scrollTop = oldScrollTop;
-      });
     } catch (error) {
       toast.error("Error loading more messages");
       console.error("Error loading more messages:", error);
@@ -675,19 +726,17 @@ export default function Home() {
           receivedMessage.type === "begMessage" ||
           receivedMessage.type === "begMessageConfirmation"
         ) {
-          // Handle new beg messages and check for duplicates
           setMessages((prevMessages) => {
             // Check if message with this ID already exists
             const messageExists = prevMessages.some(
               (msg) => msg._id === receivedMessage.message_id
             );
             if (messageExists) {
-              return prevMessages; // Don't add duplicate message
+              return prevMessages;
             }
 
-            // Add new message
+            // Add new message at the beginning
             return [
-              ...prevMessages,
               {
                 walletAddress: receivedMessage.walletAddress,
                 text: receivedMessage.text,
@@ -699,7 +748,9 @@ export default function Home() {
                 voiceId: receivedMessage.voiceId || voiceIds.Indian[0],
                 fillAmount: receivedMessage.fillAmount || "0",
                 reactions: receivedMessage.reactions || {},
+                imageUrl: receivedMessage.imageUrl || null,
               },
+              ...prevMessages,
             ];
           });
         }
@@ -729,6 +780,11 @@ export default function Home() {
           receivedMessage.type === "begMessageDeleted" ||
           receivedMessage.type === "begMessageDeletedConfirmation"
         ) {
+          // Remove from deleting messages list
+          setDeletingMessageIds((prev) =>
+            prev.filter((id) => id !== receivedMessage.message_id)
+          );
+
           // Store the current scroll position
           const container = document.getElementById("messages-container");
           if (!container) return;
@@ -802,12 +858,17 @@ export default function Home() {
     };
   }, []);
 
-  const handleSendMessage = useCallback(() => {
+  const handleSendMessage = async () => {
     try {
       if (isInCooldown) {
         toast.error(
           `Please wait ${cooldownSeconds}s before sending another message`
         );
+        return;
+      }
+
+      if (uploadingImage) {
+        toast.error(`Please wait uploading beg content`);
         return;
       }
 
@@ -845,6 +906,16 @@ export default function Home() {
       const selectedVoiceType = getRandomVoiceType();
       const selectedVoiceId = getRandomVoiceId(selectedVoiceType);
 
+      // If there's an image file, upload it first
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await getPresignedUrlAndUpload(imageFile);
+        if (!imageUrl) {
+          toast.error("Image upload failed. Please try again.");
+          return;
+        }
+      }
+
       const messageData = {
         action: "sendBegMessage",
         walletAddress: walletAddress,
@@ -853,11 +924,17 @@ export default function Home() {
         begStatus: "pending",
         voiceType: selectedVoiceType,
         voiceId: selectedVoiceId,
+        imageUrl: imageUrl,
       };
 
       websocketRef.current.send(JSON.stringify(messageData));
 
       setMessageText("");
+      setUploadedImage(null);
+      setImageFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       if (!connected) setWalletAddress("");
       setSolAmount("");
 
@@ -868,14 +945,7 @@ export default function Home() {
       toast.error("Error sending message");
       console.log(error);
     }
-  }, [
-    walletAddress,
-    messageText,
-    solAmount,
-    isInCooldown,
-    cooldownSeconds,
-    connected,
-  ]);
+  };
 
   const deleteBegMessage = (messageId: string) => {
     try {
@@ -883,6 +953,9 @@ export default function Home() {
         websocketRef.current &&
         websocketRef.current.readyState === WebSocket.OPEN
       ) {
+        // Add this message ID to the deleting list
+        setDeletingMessageIds((prev) => [...prev, messageId]);
+
         websocketRef.current.send(
           JSON.stringify({
             action: "deleteBegMessage",
@@ -899,12 +972,6 @@ export default function Home() {
       console.log("error", error);
     }
   };
-
-  const copyText = useCallback(async (address: string, messageId: string) => {
-    await navigator.clipboard.writeText(address ?? "");
-    setCopiedMessageId(messageId);
-    setTimeout(() => setCopiedMessageId(null), 2000);
-  }, []);
 
   // Setup WebSocket connection
   useEffect(() => {
@@ -962,16 +1029,6 @@ export default function Home() {
   useEffect(() => {
     fetchInitialMessages();
   }, []);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    // Only scroll if the number of messages has increased
-    if (messagesCountRef.current < messages.length) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-    // Update the reference to current count
-    messagesCountRef.current = messages.length;
-  }, [messages]);
 
   // Cooldown timer effect
   useEffect(() => {
@@ -1264,6 +1321,70 @@ export default function Home() {
     );
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    // Check file size (10MB limit)
+    const fileSize = file.size / 1024 / 1024; // size in MB
+    if (fileSize > 10) {
+      toast.error("Image size should be less than 10MB");
+      return;
+    }
+
+    // Store the file for later upload
+    setImageFile(file);
+
+    // Create local preview URL
+    const imageUrl = URL.createObjectURL(file);
+    setUploadedImage(imageUrl);
+  };
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUploadedImage(null);
+    setImageFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Grid components for responsive layout
+  const gridComponents = useMemo(
+    () => ({
+      List: React.forwardRef(({ style, children, ...props }: any, ref: any) => (
+        <div
+          ref={ref}
+          {...props}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            ...style,
+          }}
+        >
+          {children}
+        </div>
+      )),
+      Item: ({ children, ...props }: any) => (
+        <div
+          {...props}
+          style={{
+            padding: "0.5rem",
+            display: "flex",
+            flex: "none",
+            alignContent: "stretch",
+            boxSizing: "border-box",
+          }}
+          className="w-full xl:w-1/2" // 100% width on mobile, 50% on lg screens and up
+        >
+          {children}
+        </div>
+      ),
+    }),
+    []
+  );
+
   return (
     <>
       <div
@@ -1273,7 +1394,7 @@ export default function Home() {
         {/* Main container with 3 columns */}
         <div className="flex gap-4 md:gap-6 lg:gap-[48px] py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
           {/* Left section - hidden on mobile */}
-          <div className="hidden lg:block w-[27%] overflow-y-auto">
+          <div className="hidden lg:block w-[25%] overflow-y-auto">
             <div className="flex flex-col items-center justify-center">
               <img
                 src="/assets/logo-icon.svg"
@@ -1295,53 +1416,92 @@ export default function Home() {
               handleMusicChange={handleMusicChange}
             />
           </div>
-
-          {/* Center section - main content */}
-          <div className="w-full lg:w-[46%] flex flex-col">
-            <>
-              <div className="relative flex items-center justify-between w-full mb-4">
-                <div className="lg:hidden">
-                  <div className="flex items-center justify-center gap-1">
-                    <img
-                      src="/assets/logo-icon.svg"
-                      alt="logo"
-                      className="w-10 h-10"
-                    />
-                    <p className="text-[20px] leading-tight text-[#5D3014]">
-                      BegsFun
-                    </p>
-                  </div>
-                  <p className="text-[12px] text-[#5D3014] leading-tight mt-[-2px]">
-                    please send me 1 sol bro
-                  </p>
-                </div>
-                <div className="flex lg:hidden items-center justify-center gap-1">
-                  {liveChatOpen ? null : (
-                    <>
-                      {connected ? (
-                        <div className="flex lg:hidden items-center justify-center gap-1 h-6">
-                          <ConnectedState
-                            address={publicKey?.toBase58() ?? ""}
-                            disconnect={disconnect}
-                            isMobile={true}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex lg:hidden items-center justify-center">
-                          <ConnectButton isMobile={true} />
-                        </div>
+          <div className="grow flex flex-col w-[75%] max-md:px-[20px] flex-1 h-full">
+            <div className="lg:flex flex-col h-full justify-end hidden">
+              <div className="flex-shrink-0 flex items-center gap-2 h-10 justify-end">
+                <img src="/assets/begs-token-icon.svg" alt="begs" />
+                {connected ? (
+                  <ConnectedState
+                    address={publicKey?.toBase58() ?? ""}
+                    disconnect={disconnect}
+                  />
+                ) : (
+                  <ConnectButton />
+                )}
+              </div>
+              <div className="flex-shrink-0 flex justify-end mt-2">
+                <SocialLinks />
+              </div>
+            </div>
+            <div className="w-full flex flex-1 h-full gap-4 md:gap-6 lg:gap-[48px]">
+              {/* Center section - main content */}
+              <div className="w-full lg:w-[67%] flex flex-col">
+                <>
+                  <div className="relative flex items-center justify-between w-full mb-4">
+                    <div className="lg:hidden">
+                      <div className="flex items-center justify-center gap-1">
+                        <img
+                          src="/assets/logo-icon.svg"
+                          alt="logo"
+                          className="w-10 h-10"
+                        />
+                        <p className="text-[20px] leading-tight text-[#5D3014]">
+                          BegsFun
+                        </p>
+                      </div>
+                      <p className="text-[12px] text-[#5D3014] leading-tight mt-[-2px]">
+                        please send me 1 sol bro
+                      </p>
+                    </div>
+                    <div className="flex lg:hidden items-center justify-center gap-1">
+                      {liveChatOpen ? null : (
+                        <>
+                          {connected ? (
+                            <div className="flex lg:hidden items-center justify-center gap-1 h-6">
+                              <ConnectedState
+                                address={publicKey?.toBase58() ?? ""}
+                                disconnect={disconnect}
+                                isMobile={true}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex lg:hidden items-center justify-center">
+                              <ConnectButton isMobile={true} />
+                            </div>
+                          )}
+                          <span
+                            className="lg:hidden"
+                            onClick={() =>
+                              setMobileMcdViewOpen(!mobileMcdViewOpen)
+                            }
+                          >
+                            <img
+                              src={
+                                mobileMcdViewOpen
+                                  ? "/assets/mobile-close-icon.svg"
+                                  : "/assets/mobile-mcd-icon.svg"
+                              }
+                              alt={mobileMcdViewOpen ? "close" : "mcd"}
+                              className="w-6 h-6"
+                              style={{
+                                filter:
+                                  "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                              }}
+                            />
+                          </span>
+                        </>
                       )}
                       <span
                         className="lg:hidden"
-                        onClick={() => setMobileMcdViewOpen(!mobileMcdViewOpen)}
+                        onClick={() => setLiveChatOpen(!liveChatOpen)}
                       >
                         <img
                           src={
-                            mobileMcdViewOpen
+                            liveChatOpen
                               ? "/assets/mobile-close-icon.svg"
-                              : "/assets/mobile-mcd-icon.svg"
+                              : "/assets/chat-icon.svg"
                           }
-                          alt={mobileMcdViewOpen ? "close" : "mcd"}
+                          alt={liveChatOpen ? "close" : "mcd"}
                           className="w-6 h-6"
                           style={{
                             filter:
@@ -1349,165 +1509,241 @@ export default function Home() {
                           }}
                         />
                       </span>
+                    </div>
+                  </div>
+                  {liveChatOpen ? (
+                    <LiveChat />
+                  ) : mobileMcdViewOpen ? (
+                    <div className="overflow-y-auto">
+                      <AudioOptions
+                        musicEnabled={musicEnabled}
+                        handleMusicChange={handleMusicChange}
+                        isMobile={true}
+                      />
+                      <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
+                        <RoadMapInfo />
+                      </div>
+                    </div>
+                  ) : process.env.NEXT_PUBLIC_ERROR_SCREEN ? (
+                    <>
+                      <div className="grow flex flex-col items-center justify-center gap-2">
+                        <p className="text-[#5D3014] text-[64px] font-bold leading-tight">
+                          Fixing Things 🧰
+                        </p>
+                        <p className="text-[#5D3014] font-medium">
+                          Working on a few updates to improve your begging
+                          experience.
+                        </p>
+                      </div>
                     </>
-                  )}
-                  <span
-                    className="lg:hidden"
-                    onClick={() => setLiveChatOpen(!liveChatOpen)}
-                  >
-                    <img
-                      src={
-                        liveChatOpen
-                          ? "/assets/mobile-close-icon.svg"
-                          : "/assets/chat-icon.svg"
-                      }
-                      alt={liveChatOpen ? "close" : "mcd"}
-                      className="w-6 h-6"
-                      style={{
-                        filter:
-                          "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                      }}
-                    />
-                  </span>
-                </div>
-              </div>
-              {liveChatOpen ? (
-                <LiveChat />
-              ) : mobileMcdViewOpen ? (
-                <div className="overflow-y-auto">
-                  <AudioOptions
-                    musicEnabled={musicEnabled}
-                    handleMusicChange={handleMusicChange}
-                    isMobile={true}
-                  />
-                  <div className="mb-4 flex flex-col items-start gap-4 p-4 rounded-[8px] bg-[#FFD44F] w-full border border-[#FF9933]">
-                    <RoadMapInfo />
-                  </div>
-                </div>
-              ) : process.env.NEXT_PUBLIC_ERROR_SCREEN ? (
-                <>
-                  <div className="grow flex flex-col items-center justify-center gap-2">
-                    <p className="text-[#5D3014] text-[64px] font-bold leading-tight">
-                      Fixing Things 🧰
-                    </p>
-                    <p className="text-[#5D3014] font-medium">
-                      Working on a few updates to improve your begging
-                      experience.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Messages container */}
-                  <div
-                    className="grow flex-1 flex flex-col-reverse overflow-y-auto py-4"
-                    id="messages-container"
-                  >
-                    <div className="flex-1 flex flex-col justify-end">
-                      {isLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                          <div className="w-8 h-8 border-4 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
-                        </div>
-                      ) : (
-                        <>
-                          {pagination.has_next && (
-                            <div
-                              ref={loadMoreRef}
-                              className="flex items-center justify-center py-4"
-                            >
-                              {isLoadingMore ? (
-                                <div className="w-6 h-6 border-3 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
-                              ) : (
-                                <span className="text-[#5D3014] text-sm">
-                                  Scroll for more
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {messages.map((msg, index) => (
-                            <div
-                              key={`${msg._id}-${index}`}
-                              className="mb-4 flex flex-col gap-1 items-start justify-start"
-                            >
-                              <div className="p-3 sm:p-4 w-full mx-auto border border-[#FF9933] rounded-[8px] bg-white">
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1 sm:gap-2 text-[#5D3014]">
-                                      <img
-                                        src={getFlagIcon(msg.voiceType)}
-                                        alt={msg.voiceType.toLowerCase()}
-                                        className="w-5 h-5 sm:w-6 sm:h-6"
-                                      />
-                                      <span className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] sm:text-[14px]">
-                                        {msg.walletAddress.slice(0, 4)}...
-                                        {msg.walletAddress.slice(-4)}
-                                      </span>
-                                      <span>
-                                        <motion.button
-                                          onClick={() =>
-                                            copyText(msg.walletAddress, msg._id)
-                                          }
-                                          whileTap={{ scale: 0.9 }}
-                                          whileHover={{ scale: 1.1 }}
-                                          transition={{
-                                            type: "spring",
-                                            stiffness: 300,
-                                            damping: 20,
-                                          }}
-                                        >
-                                          {copiedMessageId === msg._id ? (
-                                            <p
-                                              style={{ color: "#5D3014" }}
-                                              className="text-[10px] sm:text-[12px] leading-3 flex items-center justify-center font-medium font-sofia-semibold"
-                                            >
-                                              copied!
-                                            </p>
-                                          ) : (
-                                            <div className="mt-[2px] cursor-pointer">
-                                              <CopyIcon
-                                                color={"#5D3014"}
-                                                width="10"
-                                                height="10"
-                                                className="sm:w-[12px] sm:h-[12px]"
-                                              />
-                                            </div>
-                                          )}
-                                        </motion.button>
-                                      </span>
-                                      <div className="w-1 h-1 rounded-full bg-[#FFD44F]" />
-                                      <span className="font-[Montserrat] font-medium text-[12px] sm:text-[14px] text-[#5D3014]">
-                                        {formatMessageTime(msg.timestamp)}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-center gap-2">
-                                      {adminWallets.length &&
-                                      connected &&
-                                      adminWallets.includes(
-                                        publicKey?.toBase58()!
-                                      ) ? (
-                                        <>
+                  ) : (
+                    <>
+                      {/* Messages container */}
+                      <div
+                        className="grow flex-1 flex flex-col overflow-hidden py-4"
+                        id="messages-container"
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="w-8 h-8 border-4 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
+                          </div>
+                        ) : (
+                          <VirtuosoGrid
+                            style={{ 
+                              height: "100%",
+                              scrollBehavior: "auto",
+                              WebkitOverflowScrolling: "touch" 
+                            }}
+                            totalCount={messages.length}
+                            overscan={200}
+                            increaseViewportBy={{ top: 1000, bottom: 1000 }}
+                            computeItemKey={(index) => messages[index]?._id}
+                            components={{
+                              ...gridComponents,
+                              Footer: () => (
+                                <div className="flex items-center justify-center py-4 w-full">
+                                  {isLoadingMore ? (
+                                    <div className="w-6 h-6 border-3 border-[#FFD44F] border-t-[#5D3014] rounded-full animate-spin"></div>
+                                  ) : pagination.has_next ? (
+                                    <span className="text-[#5D3014] text-sm">
+                                      Scroll for more
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ),
+                            }}
+                            itemContent={(index) => {
+                              const msg = messages[index];
+                              const isBeingDeleted = deletingMessageIds.includes(msg._id);
+                              return (
+                                <div
+                                  key={`${msg._id}-${index}`}
+                                  className={`flex flex-col gap-1 items-start justify-start w-full transition-opacity duration-300 ${
+                                    isBeingDeleted
+                                      ? "opacity-50 pointer-events-none"
+                                      : "opacity-100"
+                                  }`}
+                                >
+                                  <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1 text-[#5D3014]">
                                           <img
-                                            src="/assets/delete-icon.svg"
-                                            alt="delete"
-                                            className="w-4 h-4 cursor-pointer"
-                                            onClick={() =>
-                                              deleteBegMessage(msg._id)
-                                            }
+                                            src={getFlagIcon(msg.voiceType)}
+                                            alt={msg.voiceType.toLowerCase()}
+                                            className="w-5 h-5 sm:w-6 sm:h-6"
                                           />
-                                        </>
-                                      ) : null}
-                                      <span className="flex items-center justify-center gap-[2px]">
-                                        <img
-                                          src="/assets/solana-brown-icon.svg"
-                                          alt="solana"
-                                          className="w-4 h-4"
-                                        />
-                                        <span className="font-[Montserrat] font-medium text-[#5D3014] text-[12px] sm:text-[14px]">
-                                          {msg.solAmount} sol
-                                        </span>
-                                      </span>
+                                          <a
+                                            href={`https://solscan.io/account/${msg.walletAddress}`}
+                                            target="_blank"
+                                            rel="noreferrer noopener nofollower"
+                                            className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
+                                          >
+                                            {msg.walletAddress.slice(0, 4)}...
+                                            {msg.walletAddress.slice(-4)}
+                                          </a>
+                                          <div className="w-1 h-1 rounded-full bg-[#FFD44F] flex-shrink-0" />
+                                          <span className="font-[Montserrat] font-medium text-[12px] text-[#5D3014]">
+                                            {formatMessageTime(msg.timestamp)}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-1">
+                                          {adminWallets.length &&
+                                          connected &&
+                                          adminWallets.includes(
+                                            publicKey?.toBase58()!
+                                          ) ? (
+                                            <>
+                                              <img
+                                                src="/assets/delete-icon.svg"
+                                                alt="delete"
+                                                className="w-4 h-4 cursor-pointer"
+                                                onClick={() =>
+                                                  deleteBegMessage(msg._id)
+                                                }
+                                              />
+                                            </>
+                                          ) : null}
+                                          <PlayPauseButton
+                                            text={msg.text}
+                                            voiceId={msg.voiceId}
+                                            className="flex-shrink-0"
+                                          />
+                                          <div
+                                            className="relative"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!connected) {
+                                                toast.error(
+                                                  "Connect wallet to react!"
+                                                );
+                                                return;
+                                              }
+                                              setReactionsMessageId(
+                                                reactionsMessageId === msg._id
+                                                  ? null
+                                                  : msg._id
+                                              );
+                                            }}
+                                          >
+                                            {reactionsMessageId === msg._id ? (
+                                              <div className="absolute right-0 top-[120%] z-[9] rounded-[2000px] py-2 px-4 bg-[#FFEFBD] flex items-center gap-2 w-max">
+                                                {reactions.map((r) => (
+                                                  <div
+                                                    key={r.val}
+                                                    className={`cursor-pointer flex-shrink-0 p-1 rounded-full border bg-white`}
+                                                    style={{
+                                                      borderColor: r.color,
+                                                      boxShadow: `1px 1px 0px 0px ${r.color}`,
+                                                    }}
+                                                    onClick={() => {
+                                                      reactToBegMessage(
+                                                        msg._id,
+                                                        r.val
+                                                      );
+                                                      setReactionsMessageId(
+                                                        null
+                                                      );
+                                                    }}
+                                                  >
+                                                    <img
+                                                      src={r.icon}
+                                                      alt={r.val}
+                                                      style={{
+                                                        width: "16px",
+                                                        height: "16px",
+                                                      }}
+                                                    />
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : null}
+                                            <img
+                                              src="/assets/reactions-icon.svg"
+                                              about="reaction"
+                                              className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="w-full flex items-start gap-2">
+                                        {msg.imageUrl ? (
+                                          <img
+                                            src={msg.imageUrl}
+                                            alt="message attachment"
+                                            className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setViewImageModal({isOpen: true, imageUrl: msg.imageUrl!});
+                                            }}
+                                          />
+                                        ) : null}
+                                        <MessageText text={msg.text} />
+                                      </div>
+                                      <div className="flex items-center justify-start gap-2">
+                                        <div className="relative w-full h-[12px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
+                                          <div
+                                            className="absolute top-0 left-0 h-full transition-all duration-300"
+                                            style={{
+                                              width: `${Math.min(
+                                                100,
+                                                (Number(msg.fillAmount) /
+                                                  Number(msg.solAmount)) *
+                                                  100
+                                              )}%`,
+                                              background:
+                                                "linear-gradient(to right, #009A49, #29F188)",
+                                            }}
+                                          />
+                                          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
+                                            <div className="relative z-10 mr-[12px] text-[10px] font-medium">
+                                              <span
+                                                className="text-[#000000]"
+                                                style={{
+                                                  color:
+                                                    (Number(msg.fillAmount) /
+                                                      Number(msg.solAmount)) *
+                                                      100 >=
+                                                    95
+                                                      ? "#FFFFFF"
+                                                      : "#000000",
+                                                }}
+                                              >
+                                                {Number(msg.fillAmount).toFixed(
+                                                  4
+                                                )}{" "}
+                                                /{" "}
+                                                {Number(msg.solAmount).toFixed(
+                                                  4
+                                                )}{" "}
+                                                sol
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
                                       {msg.begStatus === "completed" ? (
-                                        <div className="hidden rounded-[8px] h-full px-4 py-1 border border-black lg:flex items-center justify-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                        <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
                                           <img
                                             src="/assets/check-fulfilled-icon.svg"
                                             alt="solana"
@@ -1526,320 +1762,246 @@ export default function Home() {
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex items-start gap-1 sm:gap-2">
-                                    <PlayPauseButton
-                                      text={msg.text}
-                                      voiceId={msg.voiceId}
-                                      className="flex-shrink-0"
-                                    />
-                                    <MessageText text={msg.text} />
-                                  </div>
-                                  {msg.begStatus === "completed" ? (
-                                    <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
-                                      <img
-                                        src="/assets/check-fulfilled-icon.svg"
-                                        alt="solana"
-                                        className="w-4 h-4"
-                                      />
-                                      <p className="text-[#5D3014] text-[14px]">
-                                        Beg fulfilled
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <DonateButton
-                                      handleDonateClick={handleDonateClick}
-                                      donatingMessageId={donatingMessageId}
-                                      msg={msg}
-                                      isMobile={true}
-                                    />
-                                  )}
-                                  <div className="flex items-center justify-start gap-2">
-                                    <div
-                                      className="relative"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!connected) {
-                                          toast.error(
-                                            "Connect wallet to react!"
-                                          );
-                                          return;
-                                        }
-                                        setReactionsMessageId(
-                                          reactionsMessageId === msg._id
-                                            ? null
-                                            : msg._id
-                                        );
-                                      }}
-                                    >
-                                      {reactionsMessageId === msg._id ? (
-                                        <div className="absolute left-0 bottom-[120%] rounded-[2000px] py-2 px-4 bg-[#FFEFBD] flex items-center gap-2 w-max">
-                                          {reactions.map((r) => (
-                                            <div
-                                              key={r.val}
-                                              className={`cursor-pointer flex-shrink-0 p-1 rounded-full border bg-white`}
-                                              style={{
-                                                borderColor: r.color,
-                                                boxShadow: `1px 1px 0px 0px ${r.color}`,
-                                              }}
-                                              onClick={() => {
-                                                reactToBegMessage(
-                                                  msg._id,
-                                                  r.val
-                                                );
-                                                setReactionsMessageId(null);
-                                              }}
-                                            >
-                                              <img
-                                                src={r.icon}
-                                                alt={r.val}
-                                                style={{
-                                                  width: "16px",
-                                                  height: "16px",
-                                                }}
-                                              />
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ) : null}
-                                      <img
-                                        src="/assets/reactions-icon.svg"
-                                        about="reaction"
-                                        className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
-                                      />
-                                    </div>
-                                    <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
-                                      <div
-                                        className="absolute top-0 left-0 h-full bg-[#009A49] transition-all duration-300"
-                                        style={{
-                                          width: `${Math.min(
-                                            100,
-                                            (Number(msg.fillAmount) /
-                                              Number(msg.solAmount)) *
-                                              100
-                                          )}%`,
-                                        }}
-                                      />
-                                      <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
-                                        <div className="relative z-10 mr-[12px] text-[12px] font-medium">
-                                          <span
-                                            className="text-[#000000]"
+                                  {msg.reactions &&
+                                  Object.keys(msg.reactions).length ? (
+                                    <div className="flex items-center justify-start gap-2">
+                                      {reactions.map((r) =>
+                                        msg.reactions[
+                                          r.val as keyof typeof msg.reactions
+                                        ] ? (
+                                          <div
+                                            key={r.val}
+                                            className={`flex-shrink-0 p-1 rounded-full border bg-white flex items-center gap-1 cursor-pointer`}
                                             style={{
-                                              color:
-                                                (Number(msg.fillAmount) /
-                                                  Number(msg.solAmount)) *
-                                                  100 >=
-                                                95
-                                                  ? "#FFFFFF"
-                                                  : "#000000",
+                                              borderColor: r.color,
+                                              boxShadow: `1px 1px 0px 0px ${r.color}`,
+                                            }}
+                                            onClick={() => {
+                                              if (!connected) {
+                                                toast.error(
+                                                  "Connect wallet to react!"
+                                                );
+                                                return;
+                                              }
+                                              reactToBegMessage(msg._id, r.val);
+                                              setReactionsMessageId(null);
                                             }}
                                           >
-                                            {Number(msg.fillAmount).toFixed(4)}{" "}
-                                            / {msg.solAmount} sol
-                                          </span>
-                                        </div>
-                                      </div>
+                                            <img
+                                              src={r.icon}
+                                              alt={r.val}
+                                              style={{
+                                                width: "16px",
+                                                height: "16px",
+                                              }}
+                                            />
+                                            <p className="font-[Montserrat] text-[12px] text-black">
+                                              {
+                                                msg.reactions[
+                                                  r.val as keyof typeof msg.reactions
+                                                ]
+                                              }
+                                            </p>
+                                          </div>
+                                        ) : null
+                                      )}
                                     </div>
-                                  </div>
+                                  ) : null}
                                 </div>
-                              </div>
-                              {msg.reactions &&
-                              Object.keys(msg.reactions).length ? (
-                                <div className="flex items-center justify-start gap-2">
-                                  {reactions.map((r) =>
-                                    msg.reactions[
-                                      r.val as keyof typeof msg.reactions
-                                    ] ? (
-                                      <div
-                                        key={r.val}
-                                        className={`flex-shrink-0 p-1 rounded-full border bg-white flex items-center gap-1 cursor-pointer`}
+                              );
+                            }}
+                            endReached={() => {
+                              if (pagination.has_next && !isLoadingMore) {
+                                fetchMoreMessages();
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Input area */}
+                      <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto">
+                        <div className="flex flex-col space-y-2">
+                          {isInputAreaOpen && (
+                            <>
+                              <div className="flex items-stretch justify-start gap-3 w-full">
+                                <div
+                                  className="flex-shrink-0 cursor-pointer border border-[#FFD44F] rounded-[8px] bg-white p-2 flex items-center justify-center self-stretch relative overflow-hidden max-w-[66px] max-h-[66px]"
+                                  onClick={() => fileInputRef.current?.click()}
+                                >
+                                  <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                  />
+                                  {uploadedImage ? (
+                                    <>
+                                      <img
+                                        src={uploadedImage}
+                                        alt="uploaded preview"
+                                        className="object-cover"
                                         style={{
-                                          borderColor: r.color,
-                                          boxShadow: `1px 1px 0px 0px ${r.color}`,
+                                          width: "100%",
+                                          height: "100%",
                                         }}
-                                        onClick={() => {
-                                          reactToBegMessage(msg._id, r.val);
-                                          setReactionsMessageId(null);
-                                        }}
+                                      />
+                                      <button
+                                        onClick={handleRemoveImage}
+                                        className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full w-4 h-4 flex items-center justify-center text-white z-10"
                                       >
-                                        <img
-                                          src={r.icon}
-                                          alt={r.val}
-                                          style={{
-                                            width: "16px",
-                                            height: "16px",
-                                          }}
-                                        />
-                                        <p className="font-[Montserrat] text-[12px] text-black">
-                                          {
-                                            msg.reactions[
-                                              r.val as keyof typeof msg.reactions
-                                            ]
-                                          }
-                                        </p>
-                                      </div>
-                                    ) : null
+                                        ×
+                                      </button>
+                                      {uploadingImage && (
+                                        <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                                          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <img
+                                      src="/assets/upload-image-icon.svg"
+                                      alt="upload"
+                                      className="w-12 h-12"
+                                    />
                                   )}
                                 </div>
-                              ) : null}
-                            </div>
-                          ))}
-                          <div ref={messagesEndRef} />
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Input area */}
-                  <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto">
-                    <div className="flex flex-col space-y-2">
-                      {isInputAreaOpen && (
-                        <>
-                          <div className="relative">
-                            <textarea
-                              placeholder={
-                                isInCooldown
-                                  ? `Please wait ${cooldownSeconds}s before sending another message`
-                                  : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
-                              }
-                              value={messageText}
-                              onChange={handleMessageChange}
-                              onKeyDown={handleKeyPress}
-                              disabled={isInCooldown}
-                              className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-[#8F95B2] text-black"
-                              rows={2}
-                            />
-                            <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
-                              {wordCount}/{MAX_WORDS}
-                            </div>
-                          </div>
-                          <div className="flex-col-reverse flex items-center gap-2">
-                            <div className="w-full rounded-[8px] bg-white p-2">
-                              <div className="flex items-center gap-2 mb-1">
-                                <img
-                                  src="/assets/solana-black-icon.svg"
-                                  alt="solana"
-                                  className="w-5 h-5 sm:w-6 sm:h-6"
-                                />
-                                <input
-                                  placeholder="sol amount"
-                                  value={solAmount}
-                                  onChange={(e) => setSolAmount(e.target.value)}
-                                  step="any"
-                                  type="number"
-                                  className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
-                                />
-                              </div>
-                              <div className="flex items-center justify-start gap-1 flex-wrap">
-                                {solAmounts.map((sa) => (
-                                  <div
-                                    key={sa}
-                                    className={`p-2 rounded-[1000px] flex items-center gap-1 border cursor-pointer ${
-                                      sa === solAmount
-                                        ? "border-black bg-[#FFD44F]"
-                                        : "border-[#FFD44F] bg-black"
-                                    }`}
-                                    onClick={() => setSolAmount(sa)}
-                                  >
-                                    <img
-                                      src={
-                                        sa === solAmount
-                                          ? "/assets/solana-black-icon.svg"
-                                          : "/assets/solana-yellow-icon.svg"
-                                      }
-                                      alt="sol"
-                                      className="w-3 h-3"
-                                    />
-                                    <span
-                                      className={`${
-                                        sa === solAmount
-                                          ? "text-black"
-                                          : "text-[#FFD44F]"
-                                      } text-[12px] leading-tight`}
-                                    >
-                                      {sa}
-                                    </span>
+                                <div className="relative w-full flex flex-col">
+                                  <textarea
+                                    placeholder={
+                                      isInCooldown
+                                        ? `Please wait ${cooldownSeconds}s before sending another message`
+                                        : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
+                                    }
+                                    value={messageText}
+                                    onChange={handleMessageChange}
+                                    onKeyDown={handleKeyPress}
+                                    disabled={isInCooldown}
+                                    className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full h-full disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-[#8F95B2] text-black"
+                                    rows={2}
+                                  />
+                                  <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
+                                    {wordCount}/{MAX_WORDS}
                                   </div>
-                                ))}
+                                </div>
                               </div>
-                            </div>
-                            <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-                              <img
-                                src="/assets/phantom-black-icon.svg"
-                                alt="phantom"
-                                className="w-5 h-5 sm:w-6 sm:h-6"
-                              />
-                              <input
-                                type="text"
-                                placeholder="sol address"
-                                value={walletAddress}
-                                onChange={(e) =>
-                                  setWalletAddress(e.target.value)
+                              <div className="flex-col-reverse flex items-center gap-2">
+                                <div className="w-full rounded-[8px] bg-white p-2">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <img
+                                      src="/assets/solana-black-icon.svg"
+                                      alt="solana"
+                                      className="w-5 h-5 sm:w-6 sm:h-6"
+                                    />
+                                    <input
+                                      placeholder="sol amount"
+                                      value={solAmount}
+                                      onChange={(e) =>
+                                        setSolAmount(e.target.value)
+                                      }
+                                      step="any"
+                                      type="number"
+                                      className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-start gap-1 flex-wrap">
+                                    {solAmounts.map((sa) => (
+                                      <div
+                                        key={sa}
+                                        className={`p-2 rounded-[1000px] flex items-center gap-1 border cursor-pointer ${
+                                          sa === solAmount
+                                            ? "border-black bg-[#FFD44F]"
+                                            : "border-[#FFD44F] bg-black"
+                                        }`}
+                                        onClick={() => setSolAmount(sa)}
+                                      >
+                                        <img
+                                          src={
+                                            sa === solAmount
+                                              ? "/assets/solana-black-icon.svg"
+                                              : "/assets/solana-yellow-icon.svg"
+                                          }
+                                          alt="sol"
+                                          className="w-3 h-3"
+                                        />
+                                        <span
+                                          className={`${
+                                            sa === solAmount
+                                              ? "text-black"
+                                              : "text-[#FFD44F]"
+                                          } text-[12px] leading-tight`}
+                                        >
+                                          {sa}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
+                                  <img
+                                    src="/assets/phantom-black-icon.svg"
+                                    alt="phantom"
+                                    className="w-5 h-5 sm:w-6 sm:h-6"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="sol address"
+                                    value={walletAddress}
+                                    onChange={(e) =>
+                                      setWalletAddress(e.target.value)
+                                    }
+                                    className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 placeholder:text-[#8F95B2] text-black"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex items-center gap-2">
+                            {isInputAreaOpen && (
+                              <button
+                                onClick={() => {
+                                  setIsInputAreaOpen(false);
+                                  setMessageText("");
+                                  setSolAmount("");
+                                  if (!connected) setWalletAddress("");
+                                }}
+                                className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none"
+                              >
+                                ✕
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (!isInputAreaOpen) {
+                                  setIsInputAreaOpen(true);
+                                } else {
+                                  handleSendMessage();
                                 }
-                                className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 placeholder:text-[#8F95B2] text-black"
+                              }}
+                              className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
+                            >
+                              <img
+                                src="/assets/bolt-icon.svg"
+                                alt="bolt"
+                                className="w-3 h-3 sm:w-4 sm:h-4"
                               />
-                            </div>
+                              <span className="text-[#FFD44F]">BEG</span>
+                            </button>
                           </div>
-                        </>
-                      )}
-                      <div className="flex items-center gap-2">
-                        {isInputAreaOpen && (
-                          <button
-                            onClick={() => {
-                              setIsInputAreaOpen(false);
-                              setMessageText("");
-                              setSolAmount("");
-                              if (!connected) setWalletAddress("");
-                            }}
-                            className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none"
-                          >
-                            ✕
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (!isInputAreaOpen) {
-                              setIsInputAreaOpen(true);
-                            } else {
-                              handleSendMessage();
-                            }
-                          }}
-                          className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
-                        >
-                          <img
-                            src="/assets/bolt-icon.svg"
-                            alt="bolt"
-                            className="w-3 h-3 sm:w-4 sm:h-4"
-                          />
-                          <span className="text-[#FFD44F]">BEG</span>
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
+                  <SocialLinks isMobile={true} />
                 </>
-              )}
-              <SocialLinks isMobile={true} />
-            </>
-          </div>
+              </div>
 
-          {/* Right section - hidden on mobile */}
-          <div className="hidden lg:block w-[27%]">
-            <div className="flex flex-col h-full">
-              <div className="flex-shrink-0 flex items-center gap-2 h-10 justify-end">
-                <img src="/assets/begs-token-icon.svg" alt="begs" />
-                {connected ? (
-                  <ConnectedState
-                    address={publicKey?.toBase58() ?? ""}
-                    disconnect={disconnect}
-                  />
-                ) : (
-                  <ConnectButton />
-                )}
-              </div>
-              <div className="flex-shrink-0 flex justify-end mt-6">
-                <SocialLinks />
-              </div>
-              <div className="flex-grow mt-6">
-                <LiveChat />
+              {/* Right section - hidden on mobile */}
+              <div className="hidden lg:block w-[33%]">
+                <div className="flex-grow mt-6">
+                  <LiveChat />
+                </div>
               </div>
             </div>
           </div>
@@ -1957,37 +2119,22 @@ export default function Home() {
         onDonate={handleDonateSubmit}
         isDonating={!!donatingMessageId}
       />
+      <Modal
+        isOpen={viewImageModal.isOpen}
+        onClose={() => setViewImageModal({isOpen: false, imageUrl: ''})}
+        style={{ background: 'transparent', border: 'none', }}
+      >
+        <div className="flex justify-center items-center h-full w-full">
+          <img 
+            src={viewImageModal.imageUrl} 
+            alt="Full size attachment" 
+            className="max-w-full max-h-[80vh] object-contain rounded-[8px]"
+          />
+        </div>
+      </Modal>
     </>
   );
 }
-
-const CopyIcon = ({
-  color,
-  width = "12",
-  height = "12",
-  className,
-}: {
-  color: string;
-  width?: string;
-  height?: string;
-  className?: string;
-}) => {
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      <path
-        d="M6.375 3.9375C6.375 3.29103 6.63181 2.67105 7.08893 2.21393C7.54605 1.75681 8.16603 1.5 8.8125 1.5H17.8125C18.459 1.5 19.079 1.75681 19.5361 2.21393C19.9932 2.67105 20.25 3.29103 20.25 3.9375V17.4375C20.25 17.7576 20.187 18.0746 20.0645 18.3703C19.942 18.666 19.7624 18.9347 19.5361 19.1611C19.3097 19.3874 19.041 19.567 18.7453 19.6895C18.4496 19.812 18.1326 19.875 17.8125 19.875H8.8125C8.4924 19.875 8.17544 19.812 7.87971 19.6895C7.58398 19.567 7.31527 19.3874 7.08893 19.1611C6.86258 18.9347 6.68304 18.666 6.56054 18.3703C6.43805 18.0746 6.375 17.7576 6.375 17.4375V3.9375ZM3.75 6.5625C3.75 5.5485 4.3695 4.67925 5.25 4.31175V17.6243C5.25 18.5194 5.60558 19.3778 6.23851 20.0107C6.87145 20.6437 7.72989 20.9993 8.625 20.9993H17.4382C17.2531 21.4436 16.9406 21.8231 16.54 22.0901C16.1395 22.357 15.6689 22.4994 15.1875 22.4993H8.625C7.3322 22.4993 6.09234 21.9857 5.17812 21.0717C4.2639 20.1576 3.7502 18.9178 3.75 17.625V6.5625Z"
-        fill={color}
-      />
-    </svg>
-  );
-};
 
 const RoadMapInfo = () => (
   <>
@@ -2067,7 +2214,7 @@ const ConnectButton = ({ isMobile = false }) => (
       <span
         className={`font-[ComicSans] ${
           isMobile ? "text-[9px]" : "text-[16px]"
-        } text-[#FFD44F] font-bold`}
+        } text-[#FFD44F] font-bold block whitespace-nowrap w-full overflow-hidden text-ellipsis`}
       >
         Connect Wallet
       </span>
@@ -2184,7 +2331,6 @@ const DonateButton = ({
   handleDonateClick,
   donatingMessageId,
   msg,
-  isMobile = false,
 }: {
   handleDonateClick: (
     recipientAddress: string,
@@ -2199,7 +2345,6 @@ const DonateButton = ({
     walletAddress: string;
     fillAmount: string;
   };
-  isMobile?: boolean;
 }) => (
   <>
     <button
@@ -2212,9 +2357,7 @@ const DonateButton = ({
         )
       }
       disabled={donatingMessageId === msg._id}
-      className={`${
-        isMobile ? "flex lg:hidden w-full" : "hidden lg:flex w-fit"
-      } bg-black cursor-pointer py-[2px] px-2 rounded-[8px] items-center justify-center gap-2 disabled:opacity-70`}
+      className={`w-full flex bg-black cursor-pointer rounded-[200px] items-center justify-center disabled:opacity-70 border border-black`}
       style={{
         filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
       }}
@@ -2223,8 +2366,20 @@ const DonateButton = ({
         <div className="w-5 h-5 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
       ) : (
         <>
-          <span className="text-[16px]">🫳</span>
-          <span className="font-bold text-[#FFD44F] text-[14px]">Donate</span>
+          <div className="lg:basis-1/2 basis-1/3 flex items-center justify-center gap-2 bg-white rounded-[200px] h-full">
+            <img
+              src="/assets/solana-brown-icon.svg"
+              alt="solana"
+              className="w-4 h-4"
+            />
+            <span className="text-[#5D3014] text-[14px]">
+              {Number(msg.solAmount).toFixed(4)} sol
+            </span>
+          </div>
+          <div className="lg:basis-1/2 basis-2/3 flex items-center justify-center gap-2">
+            <span className="text-[16px]">🫳</span>
+            <span className="font-bold text-[#FFD44F] text-[14px]">Donate</span>
+          </div>
         </>
       )}
     </button>
