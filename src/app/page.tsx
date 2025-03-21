@@ -475,6 +475,17 @@ const MessageText = ({ text }: { text: string }) => {
   );
 };
 
+// Check if a URL is a video based on its extension
+const isVideoUrl = (url: string): boolean => {
+  return /\.(mp4|webm|mov|qt|avi)$/i.test(url);
+};
+
+// Check if file is a video based on type
+const isVideoFile = (file: File | null) => {
+  if (!file) return false;
+  return file.type.startsWith('video/');
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<
     {
@@ -554,9 +565,11 @@ export default function Home() {
   const [viewImageModal, setViewImageModal] = useState<{
     isOpen: boolean;
     imageUrl: string;
+    isVideo: boolean;
   }>({
     isOpen: false,
     imageUrl: "",
+    isVideo: false,
   });
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
@@ -1326,11 +1339,14 @@ export default function Home() {
     const file = e.target.files?.[0];
 
     if (!file) return;
+    
+    // Log file type for debugging
+    console.log("Selected file type:", file.type);
 
     // Check file size (10MB limit)
     const fileSize = file.size / 1024 / 1024; // size in MB
     if (fileSize > 10) {
-      toast.error("Image size should be less than 10MB");
+      toast.error("File size should be less than 10MB");
       return;
     }
 
@@ -1417,7 +1433,7 @@ export default function Home() {
               handleMusicChange={handleMusicChange}
             />
           </div>
-          <div className="grow flex flex-col w-[75%] max-md:px-[20px] flex-1 h-full">
+          <div className="grow flex flex-col w-[75%] flex-1 h-full">
             <div className="lg:flex flex-col h-full justify-end hidden">
               <div className="flex-shrink-0 flex items-center gap-2 h-10 justify-end">
                 <img src="/assets/begs-token-icon.svg" alt="begs" />
@@ -1692,18 +1708,48 @@ export default function Home() {
                                         </div>
                                         <div className="w-full flex items-start gap-2 flex-grow">
                                           {msg.imageUrl ? (
-                                            <img
-                                              src={msg.imageUrl}
-                                              alt="message attachment"
-                                              className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setViewImageModal({
-                                                  isOpen: true,
-                                                  imageUrl: msg.imageUrl!,
-                                                });
-                                              }}
-                                            />
+                                            // Check if it's a video by extension
+                                            isVideoUrl(msg.imageUrl) ? (
+                                              <div 
+                                                className="relative w-[80px] h-[80px] flex-shrink-0 rounded-[4px] cursor-pointer overflow-hidden"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setViewImageModal({
+                                                    isOpen: true,
+                                                    imageUrl: msg.imageUrl!,
+                                                    isVideo: true
+                                                  });
+                                                }}
+                                              >
+                                                <video 
+                                                  src={msg.imageUrl}
+                                                  className="w-full h-full object-cover"
+                                                  muted
+                                                />
+                                                {/* Video play indicator overlay */}
+                                                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                                                  <img
+                                                    src="/assets/play-icon.svg"
+                                                    alt="play video"
+                                                    className="w-8 h-8 opacity-80"
+                                                  />
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <img
+                                                src={msg.imageUrl}
+                                                alt="message attachment"
+                                                className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setViewImageModal({
+                                                    isOpen: true,
+                                                    imageUrl: msg.imageUrl!,
+                                                    isVideo: false
+                                                  });
+                                                }}
+                                              />
+                                            )
                                           ) : null}
                                           <MessageText text={msg.text} />
                                         </div>
@@ -1843,20 +1889,32 @@ export default function Home() {
                                     type="file"
                                     ref={fileInputRef}
                                     className="hidden"
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/avif,.avif,video/mp4,video/webm,video/quicktime,.mov,video/x-msvideo"
                                     onChange={handleImageUpload}
                                   />
                                   {uploadedImage ? (
                                     <>
-                                      <img
-                                        src={uploadedImage}
-                                        alt="uploaded preview"
-                                        className="object-cover"
-                                        style={{
-                                          width: "100%",
-                                          height: "100%",
-                                        }}
-                                      />
+                                      {imageFile && isVideoFile(imageFile) ? (
+                                        <video 
+                                          src={uploadedImage}
+                                          className="object-cover"
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                          }}
+                                          muted
+                                        />
+                                      ) : (
+                                        <img
+                                          src={uploadedImage}
+                                          alt="uploaded preview"
+                                          className="object-cover"
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                          }}
+                                        />
+                                      )}
                                       <button
                                         onClick={handleRemoveImage}
                                         className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full w-4 h-4 flex items-center justify-center text-white z-10"
@@ -2131,15 +2189,24 @@ export default function Home() {
       />
       <Modal
         isOpen={viewImageModal.isOpen}
-        onClose={() => setViewImageModal({ isOpen: false, imageUrl: "" })}
+        onClose={() => setViewImageModal({ isOpen: false, imageUrl: "", isVideo: false })}
         style={{ background: "transparent", border: "none" }}
       >
         <div className="flex justify-center items-center h-full w-full">
-          <img
-            src={viewImageModal.imageUrl}
-            alt="Full size attachment"
-            className="max-w-full max-h-[80vh] object-contain rounded-[8px]"
-          />
+          {viewImageModal.isVideo ? (
+            <video
+              src={viewImageModal.imageUrl}
+              controls
+              autoPlay
+              className="max-w-full max-h-[80vh] object-contain rounded-[8px]"
+            />
+          ) : (
+            <img
+              src={viewImageModal.imageUrl}
+              alt="Full size attachment"
+              className="max-w-full max-h-[80vh] object-contain rounded-[8px]"
+            />
+          )}
         </div>
       </Modal>
     </>
