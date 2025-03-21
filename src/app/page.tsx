@@ -1586,7 +1586,7 @@ export default function Home() {
                                       : "opacity-100"
                                   }`}
                                 >
-                                  <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white xl:h-[200px] flex flex-col">
+                                  <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white lg:h-[220px] flex flex-col">
                                     <div className="flex flex-col gap-2 items-start justify-between h-full">
                                       <div className="w-full flex-col flex items-start gap-2">
                                         <div className="flex items-center justify-between w-full">
@@ -2367,7 +2367,7 @@ const DonateButton = ({
         )
       }
       disabled={donatingMessageId === msg._id}
-      className={`w-full flex bg-black cursor-pointer rounded-[200px] items-center justify-center disabled:opacity-70 border border-black`}
+      className={`w-full flex bg-black cursor-pointer rounded-[200px] items-center justify-center disabled:opacity-70 border border-black lg:h-[32px]`}
       style={{
         filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
       }}
