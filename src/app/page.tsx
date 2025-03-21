@@ -551,9 +551,12 @@ export default function Home() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deletingMessageIds, setDeletingMessageIds] = useState<string[]>([]);
-  const [viewImageModal, setViewImageModal] = useState<{isOpen: boolean, imageUrl: string}>({
+  const [viewImageModal, setViewImageModal] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+  }>({
     isOpen: false,
-    imageUrl: ''
+    imageUrl: "",
   });
 
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
@@ -1549,10 +1552,10 @@ export default function Home() {
                           </div>
                         ) : (
                           <VirtuosoGrid
-                            style={{ 
+                            style={{
                               height: "100%",
                               scrollBehavior: "auto",
-                              WebkitOverflowScrolling: "touch" 
+                              WebkitOverflowScrolling: "touch",
                             }}
                             totalCount={messages.length}
                             overscan={200}
@@ -1574,7 +1577,8 @@ export default function Home() {
                             }}
                             itemContent={(index) => {
                               const msg = messages[index];
-                              const isBeingDeleted = deletingMessageIds.includes(msg._id);
+                              const isBeingDeleted =
+                                deletingMessageIds.includes(msg._id);
                               return (
                                 <div
                                   key={`${msg._id}-${index}`}
@@ -1584,182 +1588,194 @@ export default function Home() {
                                       : "opacity-100"
                                   }`}
                                 >
-                                  <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white">
-                                    <div className="flex flex-col gap-2">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1 text-[#5D3014]">
-                                          <img
-                                            src={getFlagIcon(msg.voiceType)}
-                                            alt={msg.voiceType.toLowerCase()}
-                                            className="w-5 h-5 sm:w-6 sm:h-6"
-                                          />
-                                          <a
-                                            href={`https://solscan.io/account/${msg.walletAddress}`}
-                                            target="_blank"
-                                            rel="noreferrer noopener nofollower"
-                                            className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
-                                          >
-                                            {msg.walletAddress.slice(0, 4)}...
-                                            {msg.walletAddress.slice(-4)}
-                                          </a>
-                                          <div className="w-1 h-1 rounded-full bg-[#FFD44F] flex-shrink-0" />
-                                          <span className="font-[Montserrat] font-medium text-[12px] text-[#5D3014]">
-                                            {formatMessageTime(msg.timestamp)}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center justify-center gap-1">
-                                          {adminWallets.length &&
-                                          connected &&
-                                          adminWallets.includes(
-                                            publicKey?.toBase58()!
-                                          ) ? (
-                                            <>
-                                              <img
-                                                src="/assets/delete-icon.svg"
-                                                alt="delete"
-                                                className="w-4 h-4 cursor-pointer"
-                                                onClick={() =>
-                                                  deleteBegMessage(msg._id)
-                                                }
-                                              />
-                                            </>
-                                          ) : null}
-                                          <PlayPauseButton
-                                            text={msg.text}
-                                            voiceId={msg.voiceId}
-                                            className="flex-shrink-0"
-                                          />
-                                          <div
-                                            className="relative"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!connected) {
-                                                toast.error(
-                                                  "Connect wallet to react!"
-                                                );
-                                                return;
-                                              }
-                                              setReactionsMessageId(
-                                                reactionsMessageId === msg._id
-                                                  ? null
-                                                  : msg._id
-                                              );
-                                            }}
-                                          >
-                                            {reactionsMessageId === msg._id ? (
-                                              <div className="absolute right-0 top-[120%] z-[9] rounded-[2000px] py-2 px-4 bg-[#FFEFBD] flex items-center gap-2 w-max">
-                                                {reactions.map((r) => (
-                                                  <div
-                                                    key={r.val}
-                                                    className={`cursor-pointer flex-shrink-0 p-1 rounded-full border bg-white`}
-                                                    style={{
-                                                      borderColor: r.color,
-                                                      boxShadow: `1px 1px 0px 0px ${r.color}`,
-                                                    }}
-                                                    onClick={() => {
-                                                      reactToBegMessage(
-                                                        msg._id,
-                                                        r.val
-                                                      );
-                                                      setReactionsMessageId(
-                                                        null
-                                                      );
-                                                    }}
-                                                  >
-                                                    <img
-                                                      src={r.icon}
-                                                      alt={r.val}
-                                                      style={{
-                                                        width: "16px",
-                                                        height: "16px",
-                                                      }}
-                                                    />
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            ) : null}
+                                  <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white xl:h-[200px] flex flex-col">
+                                    <div className="flex flex-col gap-2 items-start justify-between h-full">
+                                      <div className="w-full flex-col flex items-start gap-2">
+                                        <div className="flex items-center justify-between w-full">
+                                          <div className="flex items-center gap-1 text-[#5D3014]">
                                             <img
-                                              src="/assets/reactions-icon.svg"
-                                              about="reaction"
-                                              className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
+                                              src={getFlagIcon(msg.voiceType)}
+                                              alt={msg.voiceType.toLowerCase()}
+                                              className="w-5 h-5 sm:w-6 sm:h-6"
                                             />
+                                            <a
+                                              href={`https://solscan.io/account/${msg.walletAddress}`}
+                                              target="_blank"
+                                              rel="noreferrer noopener nofollower"
+                                              className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
+                                            >
+                                              {msg.walletAddress.slice(0, 4)}...
+                                              {msg.walletAddress.slice(-4)}
+                                            </a>
+                                            <div className="w-1 h-1 rounded-full bg-[#FFD44F] flex-shrink-0" />
+                                            <span className="font-[Montserrat] font-medium text-[12px] text-[#5D3014]">
+                                              {formatMessageTime(msg.timestamp)}
+                                            </span>
                                           </div>
-                                        </div>
-                                      </div>
-                                      <div className="w-full flex items-start gap-2">
-                                        {msg.imageUrl ? (
-                                          <img
-                                            src={msg.imageUrl}
-                                            alt="message attachment"
-                                            className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setViewImageModal({isOpen: true, imageUrl: msg.imageUrl!});
-                                            }}
-                                          />
-                                        ) : null}
-                                        <MessageText text={msg.text} />
-                                      </div>
-                                      <div className="flex items-center justify-start gap-2">
-                                        <div className="relative w-full h-[12px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
-                                          <div
-                                            className="absolute top-0 left-0 h-full transition-all duration-300"
-                                            style={{
-                                              width: `${Math.min(
-                                                100,
-                                                (Number(msg.fillAmount) /
-                                                  Number(msg.solAmount)) *
-                                                  100
-                                              )}%`,
-                                              background:
-                                                "linear-gradient(to right, #009A49, #29F188)",
-                                            }}
-                                          />
-                                          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
-                                            <div className="relative z-10 mr-[12px] text-[10px] font-medium">
-                                              <span
-                                                className="text-[#000000]"
-                                                style={{
-                                                  color:
-                                                    (Number(msg.fillAmount) /
-                                                      Number(msg.solAmount)) *
-                                                      100 >=
-                                                    95
-                                                      ? "#FFFFFF"
-                                                      : "#000000",
-                                                }}
-                                              >
-                                                {Number(msg.fillAmount).toFixed(
-                                                  4
-                                                )}{" "}
-                                                /{" "}
-                                                {Number(msg.solAmount).toFixed(
-                                                  4
-                                                )}{" "}
-                                                sol
-                                              </span>
+                                          <div className="flex items-center justify-center gap-1">
+                                            {adminWallets.length &&
+                                            connected &&
+                                            adminWallets.includes(
+                                              publicKey?.toBase58()!
+                                            ) ? (
+                                              <>
+                                                <img
+                                                  src="/assets/delete-icon.svg"
+                                                  alt="delete"
+                                                  className="w-4 h-4 cursor-pointer"
+                                                  onClick={() =>
+                                                    deleteBegMessage(msg._id)
+                                                  }
+                                                />
+                                              </>
+                                            ) : null}
+                                            <PlayPauseButton
+                                              text={msg.text}
+                                              voiceId={msg.voiceId}
+                                              className="flex-shrink-0"
+                                            />
+                                            <div
+                                              className="relative"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (!connected) {
+                                                  toast.error(
+                                                    "Connect wallet to react!"
+                                                  );
+                                                  return;
+                                                }
+                                                setReactionsMessageId(
+                                                  reactionsMessageId === msg._id
+                                                    ? null
+                                                    : msg._id
+                                                );
+                                              }}
+                                            >
+                                              {reactionsMessageId ===
+                                              msg._id ? (
+                                                <div className="absolute right-0 top-[120%] z-[9] rounded-[2000px] py-2 px-4 bg-[#FFEFBD] flex items-center gap-2 w-max">
+                                                  {reactions.map((r) => (
+                                                    <div
+                                                      key={r.val}
+                                                      className={`cursor-pointer flex-shrink-0 p-1 rounded-full border bg-white`}
+                                                      style={{
+                                                        borderColor: r.color,
+                                                        boxShadow: `1px 1px 0px 0px ${r.color}`,
+                                                      }}
+                                                      onClick={() => {
+                                                        reactToBegMessage(
+                                                          msg._id,
+                                                          r.val
+                                                        );
+                                                        setReactionsMessageId(
+                                                          null
+                                                        );
+                                                      }}
+                                                    >
+                                                      <img
+                                                        src={r.icon}
+                                                        alt={r.val}
+                                                        style={{
+                                                          width: "16px",
+                                                          height: "16px",
+                                                        }}
+                                                      />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : null}
+                                              <img
+                                                src="/assets/reactions-icon.svg"
+                                                about="reaction"
+                                                className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
+                                              />
                                             </div>
                                           </div>
                                         </div>
-                                      </div>
-                                      {msg.begStatus === "completed" ? (
-                                        <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
-                                          <img
-                                            src="/assets/check-fulfilled-icon.svg"
-                                            alt="solana"
-                                            className="w-4 h-4"
-                                          />
-                                          <p className="text-[#5D3014] text-[14px]">
-                                            Beg fulfilled
-                                          </p>
+                                        <div className="w-full flex items-start gap-2 flex-grow">
+                                          {msg.imageUrl ? (
+                                            <img
+                                              src={msg.imageUrl}
+                                              alt="message attachment"
+                                              className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setViewImageModal({
+                                                  isOpen: true,
+                                                  imageUrl: msg.imageUrl!,
+                                                });
+                                              }}
+                                            />
+                                          ) : null}
+                                          <MessageText text={msg.text} />
                                         </div>
-                                      ) : (
-                                        <DonateButton
-                                          handleDonateClick={handleDonateClick}
-                                          donatingMessageId={donatingMessageId}
-                                          msg={msg}
-                                        />
-                                      )}
+                                      </div>
+                                      <div className="w-full flex-col flex items-start gap-4 mt-auto">
+                                        <div className="flex items-center justify-start gap-2 w-full">
+                                          <div className="relative w-full h-[12px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
+                                            <div
+                                              className="absolute top-0 left-0 h-full transition-all duration-300"
+                                              style={{
+                                                width: `${Math.min(
+                                                  100,
+                                                  (Number(msg.fillAmount) /
+                                                    Number(msg.solAmount)) *
+                                                    100
+                                                )}%`,
+                                                background:
+                                                  "linear-gradient(to right, #009A49, #29F188)",
+                                              }}
+                                            />
+                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
+                                              <div className="relative z-10 mr-[12px] text-[10px] font-medium">
+                                                <span
+                                                  className="text-[#000000]"
+                                                  style={{
+                                                    color:
+                                                      (Number(msg.fillAmount) /
+                                                        Number(msg.solAmount)) *
+                                                        100 >=
+                                                      95
+                                                        ? "#FFFFFF"
+                                                        : "#000000",
+                                                  }}
+                                                >
+                                                  {Number(
+                                                    msg.fillAmount
+                                                  ).toFixed(4)}{" "}
+                                                  /{" "}
+                                                  {Number(
+                                                    msg.solAmount
+                                                  ).toFixed(4)}{" "}
+                                                  sol
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        {msg.begStatus === "completed" ? (
+                                          <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                            <img
+                                              src="/assets/check-fulfilled-icon.svg"
+                                              alt="solana"
+                                              className="w-4 h-4"
+                                            />
+                                            <p className="text-[#5D3014] text-[14px]">
+                                              Beg fulfilled
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <DonateButton
+                                            handleDonateClick={
+                                              handleDonateClick
+                                            }
+                                            donatingMessageId={
+                                              donatingMessageId
+                                            }
+                                            msg={msg}
+                                          />
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                   {msg.reactions &&
@@ -2121,13 +2137,13 @@ export default function Home() {
       />
       <Modal
         isOpen={viewImageModal.isOpen}
-        onClose={() => setViewImageModal({isOpen: false, imageUrl: ''})}
-        style={{ background: 'transparent', border: 'none', }}
+        onClose={() => setViewImageModal({ isOpen: false, imageUrl: "" })}
+        style={{ background: "transparent", border: "none" }}
       >
         <div className="flex justify-center items-center h-full w-full">
-          <img 
-            src={viewImageModal.imageUrl} 
-            alt="Full size attachment" 
+          <img
+            src={viewImageModal.imageUrl}
+            alt="Full size attachment"
             className="max-w-full max-h-[80vh] object-contain rounded-[8px]"
           />
         </div>
