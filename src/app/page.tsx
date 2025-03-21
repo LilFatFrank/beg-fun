@@ -10,8 +10,8 @@ import { Switch } from "@/components/Switch";
 import { toast } from "sonner";
 import Link from "next/link";
 import LiveChat from "@/components/LiveChat";
-import { formatMessageTime } from "@/utils";
-import { Virtuoso, VirtuosoGrid } from "react-virtuoso";
+import { formatMessageTime, formatSolAmount } from "@/utils";
+import { VirtuosoGrid } from "react-virtuoso";
 
 const solAmounts = ["0.1", "0.5", "1", "5", "10", "100"];
 
@@ -350,7 +350,7 @@ const DonateModal = ({
                 className="w-3 h-3"
               />
               <span className="text-[12px] text-[#000]">
-                {balance?.toFixed(2) || "0.00"} SOL
+                {formatSolAmount(balance || 0) || "0.00"} SOL
               </span>
             </div>
           </div>
@@ -377,7 +377,7 @@ const DonateModal = ({
                       : "#000000",
                 }}
               >
-                {Number(fillAmount).toFixed(4)} / {solAmount} sol
+                {formatSolAmount(fillAmount)} / {solAmount} sol
               </span>
             </div>
           </div>
@@ -763,9 +763,7 @@ export default function Home() {
           receivedMessage.type === "begMessageUpdateConfirmation"
         ) {
           toast.success(
-            `Donation of ${Number(receivedMessage.fillAmount).toFixed(
-              4
-            )} sol successful!`
+            `Donation of ${formatSolAmount(receivedMessage.fillAmount)} sol successful!`
           );
           // Update an existing message
           setMessages((prevMessages) =>
@@ -1740,13 +1738,9 @@ export default function Home() {
                                                         : "#000000",
                                                   }}
                                                 >
-                                                  {Number(
-                                                    msg.fillAmount
-                                                  ).toFixed(4)}{" "}
+                                                  {formatSolAmount(msg.fillAmount)}{" "}
                                                   /{" "}
-                                                  {Number(
-                                                    msg.solAmount
-                                                  ).toFixed(4)}{" "}
+                                                  {formatSolAmount(msg.solAmount)}{" "}
                                                   sol
                                                 </span>
                                               </div>
@@ -2389,7 +2383,7 @@ const DonateButton = ({
               className="w-4 h-4"
             />
             <span className="text-[#5D3014] text-[14px]">
-              {Number(msg.solAmount).toFixed(4)} sol
+              {formatSolAmount(msg.solAmount)} sol
             </span>
           </div>
           <div className="lg:basis-1/2 basis-2/3 flex items-center justify-center gap-2">
