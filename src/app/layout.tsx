@@ -19,9 +19,24 @@ export const metadata: Metadata = {
   title: "BegsFun",
   description: "please send me 1 sol bro",
   icons: {
-    icon: "/assets/logo-icon.svg",
+    icon: [
+      {
+        rel: "icon",
+        url: "/assets/logo-icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
+    ],
   },
-  metadataBase: new URL("https://begsfun.xyz"),
+  openGraph: {
+    images: [
+      {
+        url: "https://www.begsfun.xyz/assets/logo-icon.svg",
+        alt: "please send me 1 sol bro",
+      },
+    ],
+  },
+  metadataBase: new URL("https:www.//begsfun.xyz"),
 };
 
 export default function RootLayout({
