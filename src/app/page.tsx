@@ -420,8 +420,13 @@ const DonateModal = ({
   );
 };
 
-const MessageText = ({ text }: { text: string }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const MessageText = ({
+  text,
+  setIsExpanded,
+}: {
+  text: string;
+  setIsExpanded: (val: boolean) => void;
+}) => {
   const [hasOverflow, setHasOverflow] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -466,11 +471,6 @@ const MessageText = ({ text }: { text: string }) => {
           )}
         </div>
       </div>
-      <Modal isOpen={isExpanded} onClose={() => setIsExpanded(false)}>
-        <div className="text-[14px] sm:text-[16px] break-all text-black">
-          {text}
-        </div>
-      </Modal>
     </>
   );
 };
@@ -483,7 +483,35 @@ const isVideoUrl = (url: string): boolean => {
 // Check if file is a video based on type
 const isVideoFile = (file: File | null) => {
   if (!file) return false;
-  return file.type.startsWith('video/');
+  return file.type.startsWith("video/");
+};
+
+// Add the Jupiter Terminal utility function
+const openJupiterTerminal = () => {
+  if (typeof window !== "undefined" && window.Jupiter) {
+    const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC!; // You can replace with a better RPC provider
+
+    window.Jupiter.init({
+      displayMode: "modal",
+      endpoint: RPC_ENDPOINT,
+      formProps: {
+        initialInputMint: "So11111111111111111111111111111111111111112",
+        initialOutputMint: process.env.NEXT_PUBLIC_PUMP_ADD,
+        fixedInputMint: true,
+        fixedOutputMint: true,
+      },
+      containerClassName:
+        "max-h-[90vh] lg:max-h-[600px] w-full lg:w-[600px] overflow-hidden",
+      containerStyles: {
+        zIndex: 999999,
+      },
+    });
+  } else {
+    console.error("Jupiter Terminal is not loaded");
+    toast.error(
+      "Could not load Jupiter Terminal. Please refresh and try again."
+    );
+  }
 };
 
 export default function Home() {
@@ -502,6 +530,8 @@ export default function Home() {
       imageUrl?: string;
     }[]
   >([]);
+  const [isMessageExpanded, setIsMessageExpanded] = useState(false);
+  const [expandedMessage, setExpandedMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [pagination, setPagination] = useState<{
@@ -776,7 +806,9 @@ export default function Home() {
           receivedMessage.type === "begMessageUpdateConfirmation"
         ) {
           toast.success(
-            `Donation of ${formatSolAmount(receivedMessage.fillAmount)} sol successful!`
+            `Donation of ${formatSolAmount(
+              receivedMessage.fillAmount
+            )} sol successful!`
           );
           // Update an existing message
           setMessages((prevMessages) =>
@@ -1339,7 +1371,7 @@ export default function Home() {
     const file = e.target.files?.[0];
 
     if (!file) return;
-    
+
     // Log file type for debugging
     console.log("Selected file type:", file.type);
 
@@ -1436,7 +1468,13 @@ export default function Home() {
           <div className="grow flex flex-col w-[75%] flex-1 h-full">
             <div className="lg:flex flex-col h-full justify-end hidden">
               <div className="flex-shrink-0 flex items-center gap-2 h-10 justify-end">
-                <img src="/assets/begs-token-icon.svg" alt="begs" />
+                <img
+                  src="/assets/begs-token-icon.svg"
+                  alt="begs"
+                  className="cursor-pointer"
+                  onClick={openJupiterTerminal}
+                  title="Swap for BEGS tokens"
+                />
                 {connected ? (
                   <ConnectedState
                     address={publicKey?.toBase58() ?? ""}
@@ -1471,7 +1509,26 @@ export default function Home() {
                       </p>
                     </div>
                     <div className="flex lg:hidden items-center justify-center gap-1">
-                      {liveChatOpen ? null : (
+                      {liveChatOpen || mobileMcdViewOpen ? (
+                        <span
+                          className="lg:hidden"
+                          onClick={
+                            mobileMcdViewOpen
+                              ? () => setMobileMcdViewOpen(false)
+                              : () => setLiveChatOpen(false)
+                          }
+                        >
+                          <img
+                            src={"/assets/mobile-close-icon.svg"}
+                            alt={mobileMcdViewOpen ? "close" : "mcd"}
+                            className="w-6 h-6"
+                            style={{
+                              filter:
+                                "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                            }}
+                          />
+                        </span>
+                      ) : (
                         <>
                           {connected ? (
                             <div className="flex lg:hidden items-center justify-center gap-1 h-6">
@@ -1486,19 +1543,14 @@ export default function Home() {
                               <ConnectButton isMobile={true} />
                             </div>
                           )}
+                          <img src="/assets/beg-mobile-icon.svg" alt="beg" className="w-6 h-6" onClick={openJupiterTerminal} />
                           <span
                             className="lg:hidden"
-                            onClick={() =>
-                              setMobileMcdViewOpen(!mobileMcdViewOpen)
-                            }
+                            onClick={() => setLiveChatOpen(true)}
                           >
                             <img
-                              src={
-                                mobileMcdViewOpen
-                                  ? "/assets/mobile-close-icon.svg"
-                                  : "/assets/mobile-mcd-icon.svg"
-                              }
-                              alt={mobileMcdViewOpen ? "close" : "mcd"}
+                              src={"/assets/chat-icon.svg"}
+                              alt={"chat"}
                               className="w-6 h-6"
                               style={{
                                 filter:
@@ -1508,24 +1560,6 @@ export default function Home() {
                           </span>
                         </>
                       )}
-                      <span
-                        className="lg:hidden"
-                        onClick={() => setLiveChatOpen(!liveChatOpen)}
-                      >
-                        <img
-                          src={
-                            liveChatOpen
-                              ? "/assets/mobile-close-icon.svg"
-                              : "/assets/chat-icon.svg"
-                          }
-                          alt={liveChatOpen ? "close" : "mcd"}
-                          className="w-6 h-6"
-                          style={{
-                            filter:
-                              "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
-                          }}
-                        />
-                      </span>
                     </div>
                   </div>
                   {liveChatOpen ? (
@@ -1710,18 +1744,18 @@ export default function Home() {
                                           {msg.imageUrl ? (
                                             // Check if it's a video by extension
                                             isVideoUrl(msg.imageUrl) ? (
-                                              <div 
+                                              <div
                                                 className="relative w-[80px] h-[80px] flex-shrink-0 rounded-[4px] cursor-pointer overflow-hidden"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setViewImageModal({
                                                     isOpen: true,
                                                     imageUrl: msg.imageUrl!,
-                                                    isVideo: true
+                                                    isVideo: true,
                                                   });
                                                 }}
                                               >
-                                                <video 
+                                                <video
                                                   src={msg.imageUrl}
                                                   className="w-full h-full object-cover"
                                                   muted
@@ -1745,13 +1779,19 @@ export default function Home() {
                                                   setViewImageModal({
                                                     isOpen: true,
                                                     imageUrl: msg.imageUrl!,
-                                                    isVideo: false
+                                                    isVideo: false,
                                                   });
                                                 }}
                                               />
                                             )
                                           ) : null}
-                                          <MessageText text={msg.text} />
+                                          <MessageText
+                                            text={msg.text}
+                                            setIsExpanded={(val) => {
+                                              setIsMessageExpanded(val);
+                                              setExpandedMessage(msg.text);
+                                            }}
+                                          />
                                         </div>
                                       </div>
                                       <div className="w-full flex-col flex items-start gap-4 mt-auto">
@@ -1771,7 +1811,7 @@ export default function Home() {
                                               }}
                                             />
                                             <div className="absolute top-0 left-0 w-full h-full flex items-center justify-end">
-                                              <div className="relative z-10 mr-[12px] text-[10px] font-medium">
+                                              <div className="relative mr-[12px] text-[10px] font-medium">
                                                 <span
                                                   className="text-[#000000]"
                                                   style={{
@@ -1784,9 +1824,13 @@ export default function Home() {
                                                         : "#000000",
                                                   }}
                                                 >
-                                                  {formatSolAmount(msg.fillAmount)}{" "}
+                                                  {formatSolAmount(
+                                                    msg.fillAmount
+                                                  )}{" "}
                                                   /{" "}
-                                                  {formatSolAmount(msg.solAmount)}{" "}
+                                                  {formatSolAmount(
+                                                    msg.solAmount
+                                                  )}{" "}
                                                   sol
                                                 </span>
                                               </div>
@@ -1895,7 +1939,7 @@ export default function Home() {
                                   {uploadedImage ? (
                                     <>
                                       {imageFile && isVideoFile(imageFile) ? (
-                                        <video 
+                                        <video
                                           src={uploadedImage}
                                           className="object-cover"
                                           style={{
@@ -2061,7 +2105,11 @@ export default function Home() {
                       </div>
                     </>
                   )}
-                  <SocialLinks isMobile={true} />
+                  <SocialLinks
+                    isMobile={true}
+                    mobileMcdViewOpen={mobileMcdViewOpen}
+                    setMobileMcdViewOpen={(val) => setMobileMcdViewOpen(val)}
+                  />
                 </>
               </div>
 
@@ -2179,6 +2227,14 @@ export default function Home() {
           )}
         </div>
       </div>
+      <Modal
+        isOpen={isMessageExpanded}
+        onClose={() => setIsMessageExpanded(false)}
+      >
+        <div className="text-[14px] sm:text-[16px] break-all text-black">
+          {expandedMessage}
+        </div>
+      </Modal>
       <DonateModal
         isOpen={donateModal.isOpen}
         onClose={() => setDonateModal((prev) => ({ ...prev, isOpen: false }))}
@@ -2189,7 +2245,9 @@ export default function Home() {
       />
       <Modal
         isOpen={viewImageModal.isOpen}
-        onClose={() => setViewImageModal({ isOpen: false, imageUrl: "", isVideo: false })}
+        onClose={() =>
+          setViewImageModal({ isOpen: false, imageUrl: "", isVideo: false })
+        }
         style={{ background: "transparent", border: "none" }}
       >
         <div className="flex justify-center items-center h-full w-full">
@@ -2343,7 +2401,15 @@ const ConnectedState = ({
   </>
 );
 
-const SocialLinks = ({ isMobile = false }) => (
+const SocialLinks = ({
+  isMobile = false,
+  mobileMcdViewOpen,
+  setMobileMcdViewOpen,
+}: {
+  isMobile?: boolean;
+  mobileMcdViewOpen?: boolean;
+  setMobileMcdViewOpen?: (val: boolean) => void;
+}) => (
   <>
     <div
       className={`${
@@ -2400,6 +2466,21 @@ const SocialLinks = ({ isMobile = false }) => (
           }}
         />
       </Link>
+      {mobileMcdViewOpen ? null : (
+        <span
+          className="lg:hidden"
+          onClick={() => setMobileMcdViewOpen?.(true)}
+        >
+          <img
+            src={"/assets/mobile-mcd-icon.svg"}
+            alt={"chat"}
+            className="w-6 h-6"
+            style={{
+              filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+            }}
+          />
+        </span>
+      )}
     </div>
   </>
 );
