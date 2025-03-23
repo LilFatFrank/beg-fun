@@ -1471,7 +1471,7 @@ export default function Home() {
       }
       
       .message-bump {
-        animation: messageBump 1.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        animation: messageBump 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
         transform-origin: center center;
         position: relative;
         z-index: 10;
@@ -1493,7 +1493,7 @@ export default function Home() {
         border-radius: 8px;
         z-index: 100;
         pointer-events: none;
-        animation: highlightFade 1.2s ease-out forwards;
+        animation: highlightFade 0.6s ease-out forwards;
       }
       
       @keyframes highlightFade {
