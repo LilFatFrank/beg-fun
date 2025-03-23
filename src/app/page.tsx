@@ -528,6 +528,7 @@ export default function Home() {
       fillAmount: string;
       reactions: ReactionsType;
       imageUrl?: string;
+      isNew?: boolean; // Track new messages for animation
     }[]
   >([]);
   const [isMessageExpanded, setIsMessageExpanded] = useState(false);
@@ -781,7 +782,7 @@ export default function Home() {
               return prevMessages;
             }
 
-            // Add new message at the beginning
+            // Add new message at the beginning with isNew flag
             return [
               {
                 walletAddress: receivedMessage.walletAddress,
@@ -795,6 +796,7 @@ export default function Home() {
                 fillAmount: receivedMessage.fillAmount || "0",
                 reactions: receivedMessage.reactions || {},
                 imageUrl: receivedMessage.imageUrl || null,
+                isNew: true, // Mark as new for animation
               },
               ...prevMessages,
             ];
@@ -810,18 +812,33 @@ export default function Home() {
               receivedMessage.fillAmount
             )} sol successful!`
           );
-          // Update an existing message
-          setMessages((prevMessages) =>
-            prevMessages.map((message) =>
-              message._id === receivedMessage.message_id
-                ? {
-                    ...message,
-                    begStatus: receivedMessage.begStatus,
-                    fillAmount: receivedMessage.fillAmount || "0",
-                  }
-                : message
-            )
-          );
+          
+          // Update an existing message, mark as new for animation, and move to the front
+          setMessages((prevMessages) => {
+            // Find the message to update
+            const updatedMessageIndex = prevMessages.findIndex(
+              (msg) => msg._id === receivedMessage.message_id
+            );
+            
+            if (updatedMessageIndex === -1) return prevMessages;
+            
+            // Create a copy of the messages array
+            const newMessages = [...prevMessages];
+            
+            // Get the message and update it
+            const updatedMessage = {
+              ...newMessages[updatedMessageIndex],
+              begStatus: receivedMessage.begStatus,
+              fillAmount: receivedMessage.fillAmount || "0",
+              isNew: true, // Mark as new for animation
+            };
+            
+            // Remove the message from its current position
+            newMessages.splice(updatedMessageIndex, 1);
+            
+            // Add the updated message to the beginning of the array
+            return [updatedMessage, ...newMessages];
+          });
         } else if (
           receivedMessage.type === "begMessageDeleted" ||
           receivedMessage.type === "begMessageDeletedConfirmation"
@@ -1434,6 +1451,84 @@ export default function Home() {
     []
   );
 
+  // Add CSS keyframes for the bump animation at the top of the file
+  useEffect(() => {
+    // Add the keyframes for the bump animation to the document
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes messageBump {
+        0% { transform: translateX(0) scale(1); }
+        10% { transform: translateX(-8px) scale(1.02); }
+        20% { transform: translateX(8px) scale(1.03); }
+        30% { transform: translateX(-7px) scale(1.02); }
+        40% { transform: translateX(6px) scale(1.01); }
+        50% { transform: translateX(-5px) scale(1.005); }
+        60% { transform: translateX(4px) scale(1); }
+        70% { transform: translateX(-3px) scale(1); }
+        80% { transform: translateX(2px) scale(1); }
+        90% { transform: translateX(-1px) scale(1); }
+        100% { transform: translateX(0) scale(1); }
+      }
+      
+      .message-bump {
+        animation: messageBump 1.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        transform-origin: center center;
+        position: relative;
+        z-index: 10;
+        border-radius: 8px;
+      }
+      
+      .message-bump > div:first-child {
+        animation: contentFadeIn 1s ease-in forwards;
+        border-width: 2px;
+        border-color: #FFD44F;
+        position: relative;
+      }
+      
+      .message-bump > div:first-child::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-color: rgba(255, 212, 79, 0.4);
+        border-radius: 8px;
+        z-index: 100;
+        pointer-events: none;
+        animation: highlightFade 1.2s ease-out forwards;
+      }
+      
+      @keyframes highlightFade {
+        0% { opacity: 0.9; }
+        100% { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Function to clear the "new" flag after animation
+  useEffect(() => {
+    // Find messages marked as new and set a timeout to remove the flag
+    const newMessages = messages.filter(msg => msg.isNew);
+    if (newMessages.length > 0) {
+      const timeoutIds = newMessages.map(msg => {
+        return setTimeout(() => {
+          setMessages(prevMessages => 
+            prevMessages.map(m => 
+              m._id === msg._id ? { ...m, isNew: false } : m
+            )
+          );
+        }, 1200); // Match animation duration
+      });
+      
+      return () => {
+        timeoutIds.forEach(id => clearTimeout(id));
+      };
+    }
+  }, [messages]);
+
   return (
     <>
       <div
@@ -1634,7 +1729,7 @@ export default function Home() {
                                     isBeingDeleted
                                       ? "opacity-50 pointer-events-none"
                                       : "opacity-100"
-                                  }`}
+                                  } ${msg.isNew ? "message-bump" : ""}`}
                                 >
                                   <div className="p-3 w-full mx-auto border border-[#8F95B2] rounded-[8px] bg-white lg:h-[220px] flex flex-col">
                                     <div className="flex flex-col gap-2 items-start justify-between h-full">
