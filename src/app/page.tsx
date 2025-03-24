@@ -1933,11 +1933,12 @@ export default function Home() {
                                           </div>
                                         </div>
                                         {msg.begStatus === "completed" ? (
-                                          <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black lg:hidden flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
+                                          <div className="rounded-[8px] h-full w-full px-4 py-1 border border-black flex items-center gap-2 bg-[#FFD44F] shadow-[inset_0px_4px_8px_0px_rgba(0,0,0,0.25)]">
                                             <img
                                               src="/assets/check-fulfilled-icon.svg"
                                               alt="solana"
                                               className="w-4 h-4"
+                                              loading="lazy"
                                             />
                                             <p className="text-[#5D3014] text-[14px]">
                                               Beg fulfilled
