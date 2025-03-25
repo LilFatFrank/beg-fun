@@ -61,9 +61,9 @@ export default function RootLayout({
           }}
         />
         <img
-          src="/assets/bg-image.jpg"
+          src="/assets/grid-pattern-bg.jpg"
           alt="bg"
-          className="fixed max-md:h-screen md:top-1/2 md:left-1/2 md:translate-x-[-50%] md:translate-y-[-50%] z-[-1] object-cover"
+          className="w-full h-full fixed top-0 left-0 right-0 bottom-0 z-[-1] object-cover"
         />
         <ClientWalletProvider>{children}</ClientWalletProvider>
       </body>

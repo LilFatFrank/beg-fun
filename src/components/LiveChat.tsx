@@ -340,7 +340,7 @@ const LiveChat = () => {
   };
 
   return (
-    <div className="w-full flex-grow bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col lg:max-h-[calc(100vh-250px)] max-h-[calc(100vh-200px)]">
+    <div className="w-full h-[87%] bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col">
       <div className="flex-shrink-0 py-2 px-3 flex items-center justify-between relative">
         <div className="flex items-center gap-2">
           <img src="/assets/mfer-icon.svg" alt="mfer" className="w-10 h-10" />
@@ -417,7 +417,7 @@ const LiveChat = () => {
       </div>
       <div className="flex-shrink-0 w-full px-3 py-2 [&>div]:w-full">
         {connected ? (
-          <div className="h-[40px] w-full p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
+          <div className="h-[40px] p-1 rounded-[4px] border border-[#5D3014] bg-white flex items-center gap-2">
             <input
               className="grow outline-none border-none p-0 placeholder:text-[#8F95B2] text-[14px]"
               placeholder="discuss"
