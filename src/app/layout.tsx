@@ -63,7 +63,7 @@ export default function RootLayout({
         <img
           src="/assets/grid-pattern-bg.jpg"
           alt="bg"
-          className="w-full h-full fixed top-0 left-0 right-0 bottom-0 z-[-1] object-cover"
+          className="w-full h-full fixed top-0 left-0 right-0 bottom-0 z-[-1] object-cove opacity-[45%]"
         />
         <ClientWalletProvider>{children}</ClientWalletProvider>
       </body>
