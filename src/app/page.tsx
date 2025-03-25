@@ -310,6 +310,14 @@ const DonateModal = ({
   const [amount, setAmount] = useState("");
   const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
 
+  const handleDonateClick = useCallback(() => {
+    if (!amount) {
+      toast.error("Please enter donation amount!");
+      return;
+    }
+    onDonate(amount);
+  }, [amount]);
+
   useEffect(() => {
     const fetchBalance = async () => {
       if (publicKey) {
@@ -410,9 +418,9 @@ const DonateModal = ({
         </div>
         <div className="w-[60%] bg-gradient-to-r from-[#000000] to-[#ffffff] h-[1px] mt-[12px] mb-[16px]" />
         <button
-          onClick={() => onDonate(amount)}
-          disabled={!amount || isDonating}
-          className="h-[48px] w-full flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
+          onClick={handleDonateClick}
+          disabled={isDonating}
+          className="h-[48px] w-full flex items-center justify-center cursor-pointer gap-2 border-[#000000] bg-gradient-to-r from-[#000000] to-[#454545] text-[#FFD44F] text-[16px] rounded-[8px] outline-none border-none disabled:opacity-[0.6] disabled:cursor-not-allowed"
         >
           {isDonating ? (
             <div className="w-6 h-6 border-2 border-[#FFD44F] border-t-transparent rounded-full animate-spin" />
@@ -1753,6 +1761,10 @@ export default function Home() {
                           setIsInputAreaOpen(true);
                           setOpenCreateBegModal(true);
                         }}
+                        style={{
+                          filter:
+                            "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
+                        }}
                       >
                         <img
                           src="/assets/bolt-beg-icon.svg"
@@ -1836,7 +1848,7 @@ export default function Home() {
                                             {formatMessageTime(msg.timestamp)}
                                           </span>
                                         </div>
-                                        <div className="flex items-center justify-center gap-1">
+                                        <div className="flex items-center justify-center gap-2">
                                           {adminWallets.length &&
                                           connected &&
                                           adminWallets.includes(
@@ -2902,7 +2914,7 @@ const DonateButton = ({
             )
           }
           disabled={donatingMessageId === msg._id}
-          className={`grow w-full bg-black cursor-pointer rounded-[8px] disabled:opacity-70 border border-black lg:h-[32px]`}
+          className={`grow w-full border-[#000000] bg-gradient-to-r from-[#000000] to-[#454545] cursor-pointer rounded-[8px] disabled:opacity-70 border lg:h-[32px]`}
           style={{
             filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
           }}
