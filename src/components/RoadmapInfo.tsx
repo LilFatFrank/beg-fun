@@ -6,7 +6,7 @@ const RoadMapInfo = () => (
       <img
         src="/assets/roadmape-icon.svg"
         alt="roadmape"
-        className="absolute left-[-40px] top-[40%] translate-y-[-50%]"
+        className="absolute left-[-40px] lg:top-[40%] top-[20px] translate-y-[-50%]"
       />
       <img
         src="https://media.tenor.com/0iHLh37L15EAAAAj/lfg-wsb.gif"
