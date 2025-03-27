@@ -340,7 +340,7 @@ const LiveChat = () => {
   };
 
   return (
-    <div className="w-full h-[87%] bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col">
+    <div className="w-full mt-4 lg:m-0 h-[87%] bg-[#FFD44F] rounded-[8px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col">
       <div className="flex-shrink-0 py-2 px-3 flex items-center justify-between relative">
         <div className="flex items-center gap-2">
           <img src="/assets/mfer-icon.svg" alt="mfer" className="w-10 h-10" />
@@ -399,7 +399,7 @@ const LiveChat = () => {
                       {formatMessageTime(msg.timestamp)}
                     </p>
                   </div>
-                  <p className="font-normal text-[14px] text-[#121212]">
+                  <p className="font-normal text-[14px] text-[#121212] break-all">
                     {renderMessageWithLinks(msg.message)}
                   </p>
                   {i !== arr.length - 1 ? (
