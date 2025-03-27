@@ -46,7 +46,11 @@ const MessageText = ({
           {text}
           {hasOverflow && (
             <button
-              onClick={() => setIsExpanded(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setIsExpanded(true);
+              }}
               className="absolute bottom-0 font-bold cursor-pointer right-0 bg-white pl-1 text-[12px] sm:text-[14px] text-[#5D3014] hover:underline"
             >
               ...view more
