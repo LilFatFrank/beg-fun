@@ -32,6 +32,13 @@ export const metadata: Metadata = {
         type: "image/svg+xml",
       },
     ],
+    apple: [
+      {
+        url: "/assets/logo-icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
+    ],
   },
   openGraph: {
     title: "BegsFun",
