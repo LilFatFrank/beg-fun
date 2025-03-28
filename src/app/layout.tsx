@@ -27,9 +27,9 @@ export const metadata: Metadata = {
     icon: [
       {
         rel: "icon",
-        url: "/assets/opengraph-image.jpg",
+        url: "/assets/logo-icon.svg",
         sizes: "any",
-        type: "image/jpeg",
+        type: "image/svg+xml",
       },
     ],
   },
