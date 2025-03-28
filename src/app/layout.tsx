@@ -31,12 +31,34 @@ export const metadata: Metadata = {
         sizes: "any",
         type: "image/svg+xml",
       },
+      {
+        rel: "shortcut icon",
+        url: "/assets/logo-icon.svg",
+        type: "image/svg+xml",
+      },
+      {
+        rel: "apple-touch-icon",
+        url: "/assets/logo-icon.svg",
+        type: "image/svg+xml",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/assets/logo-icon.svg",
+        type: "image/svg+xml",
+      },
     ],
     apple: [
       {
         url: "/assets/logo-icon.svg",
         sizes: "any",
         type: "image/svg+xml",
+      },
+    ],
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/assets/logo-icon.svg",
       },
     ],
   },
