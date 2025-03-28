@@ -27,38 +27,38 @@ export const metadata: Metadata = {
     icon: [
       {
         rel: "icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon.jpg",
         sizes: "any",
-        type: "image/svg+xml",
+        type: "image/jpeg",
       },
       {
         rel: "shortcut icon",
-        url: "/assets/logo-icon.svg",
-        type: "image/svg+xml",
+        url: "/assets/logo-icon.jpg",
+        type: "image/jpeg",
       },
       {
         rel: "apple-touch-icon",
-        url: "/assets/logo-icon.svg",
-        type: "image/svg+xml",
+        url: "/assets/logo-icon.jpg",
+        type: "image/jpeg",
       },
     ],
     shortcut: [
       {
-        url: "/assets/logo-icon.svg",
-        type: "image/svg+xml",
+        url: "/assets/logo-icon.jpg",
+        type: "image/jpeg",
       },
     ],
     apple: [
       {
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon.jpg",
         sizes: "any",
-        type: "image/svg+xml",
+        type: "image/jpeg",
       },
     ],
     other: [
       {
         rel: "mask-icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon.jpg",
       },
     ],
   },

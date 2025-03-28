@@ -57,7 +57,7 @@ export default async function Image({ params }: { params: { id: string } }) {
               }}
             >
               <img
-                src="https://www.begsfun.xyz/assets/logo-icon.svg"
+                src="https://www.begsfun.xyz/assets/logo-icon.jpg"
                 width="68"
                 height="68"
                 alt="BegsFun"
@@ -119,7 +119,7 @@ export default async function Image({ params }: { params: { id: string } }) {
                 style={{ display: "flex", alignItems: "center", gap: "16px" }}
               >
                 <img
-                  src="https://www.begsfun.xyz/assets/logo-icon.svg"
+                  src="https://www.begsfun.xyz/assets/logo-icon.jpg"
                   width="48"
                   height="48"
                   alt="BegsFun"
@@ -341,12 +341,13 @@ export default async function Image({ params }: { params: { id: string } }) {
       (
         <div
           style={{
-            background: "#FFFBF2",
+            background: "linear-gradient(to bottom, #FFFFFF, #FFEFBE)",
             width: "100%",
             height: "100%",
             display: "flex",
             flexDirection: "column",
-            padding: "40px",
+            alignItems: "center",
+            justifyContent: "center",
             fontFamily: "Comic Sans MS",
           }}
         >
@@ -359,19 +360,23 @@ export default async function Image({ params }: { params: { id: string } }) {
             }}
           >
             <img
-              src="https://begsfun.xyz/logo-icon.svg"
-              width="64"
-              height="64"
+              src="https://www.begsfun.xyz/assets/logo-icon.jpg"
+              width="68"
+              height="68"
               alt="BegsFun"
             />
             <span
-              style={{ fontSize: "32px", color: "#5D3014", fontWeight: "bold" }}
+              style={{
+                fontSize: "32px",
+                color: "#5D3014",
+                fontWeight: "bold",
+              }}
             >
               BegsFun
             </span>
           </div>
           <p style={{ fontSize: "24px", color: "#5D3014" }}>
-            Error loading beg
+            could not fetch beg
           </p>
         </div>
       ),

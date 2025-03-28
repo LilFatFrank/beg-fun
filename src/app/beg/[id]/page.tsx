@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import { Virtuoso } from "react-virtuoso";
 import DonateButton from "@/components/DonateButton";
 
-const Page: FC<{ params: Promise<{ id: string }> }> = memo(({ params }) => {
+const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(({ params }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isDonating, setIsDonating] = useState(false);
@@ -1119,4 +1119,4 @@ const Page: FC<{ params: Promise<{ id: string }> }> = memo(({ params }) => {
   );
 });
 
-export default Page;
+export default ClientPage;
