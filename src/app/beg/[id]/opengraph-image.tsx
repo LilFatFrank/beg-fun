@@ -57,7 +57,7 @@ export default async function Image({ params }: { params: { id: string } }) {
               }}
             >
               <img
-                src="https://www.begsfun.xyz/assets/logo-icon.jpg"
+                src="https://www.begsfun.xyz/assets/logo-icon.svg"
                 width="68"
                 height="68"
                 alt="BegsFun"
@@ -119,7 +119,7 @@ export default async function Image({ params }: { params: { id: string } }) {
                 style={{ display: "flex", alignItems: "center", gap: "16px" }}
               >
                 <img
-                  src="https://www.begsfun.xyz/assets/logo-icon.jpg"
+                  src="https://www.begsfun.xyz/assets/logo-icon.svg"
                   width="48"
                   height="48"
                   alt="BegsFun"
@@ -360,7 +360,7 @@ export default async function Image({ params }: { params: { id: string } }) {
             }}
           >
             <img
-              src="https://www.begsfun.xyz/assets/logo-icon.jpg"
+              src="https://www.begsfun.xyz/assets/logo-icon.svg"
               width="68"
               height="68"
               alt="BegsFun"
@@ -375,9 +375,7 @@ export default async function Image({ params }: { params: { id: string } }) {
               BegsFun
             </span>
           </div>
-          <p style={{ fontSize: "24px", color: "#5D3014" }}>
-            could not fetch beg
-          </p>
+          <p style={{ fontSize: "24px", color: "#5D3014" }}>beg not found</p>
         </div>
       ),
       {
