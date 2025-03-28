@@ -27,21 +27,36 @@ export const metadata: Metadata = {
     icon: [
       {
         rel: "icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/opengraph-image.jpg",
         sizes: "any",
-        type: "image/svg+xml",
+        type: "image/jpeg",
       },
     ],
   },
   openGraph: {
+    title: "BegsFun",
+    description: "please send me 1 sol bro",
+    url: "https://www.begsfun.xyz",
+    siteName: "BegsFun",
     images: [
       {
-        url: "https://www.begsfun.xyz/assets/logo-icon.svg",
-        alt: "please send me 1 sol bro",
+        url: "https://www.begsfun.xyz/assets/opengraph-image.jpg",
+        alt: "BegsFun - please send me 1 sol bro",
       },
     ],
+    locale: "en_US",
+    type: "website",
   },
-  metadataBase: new URL("https:www.//begsfun.xyz"),
+  twitter: {
+    card: "summary_large_image",
+    title: "BegsFun",
+    description: "please send me 1 sol bro",
+    images: ["https://www.begsfun.xyz/assets/opengraph-image.jpg"],
+  },
+  metadataBase: new URL("https://www.begsfun.xyz"),
+  alternates: {
+    canonical: "https://www.begsfun.xyz",
+  },
 };
 
 export default function RootLayout({
