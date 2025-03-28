@@ -77,7 +77,7 @@ const DonateComponent = ({
       </div>
       <div className="relative w-full h-[24px] bg-[#FFD44F] rounded-[200px] overflow-hidden border border-[#FF9933] mt-2">
         <div
-          className="absolute top-0 left-0 h-full transition-all duration-300"
+          className="absolute top-0 left-0 h-full transition-all duration-300 rounded-[200px]"
           style={{
             width: `${Math.min(
               100,

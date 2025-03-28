@@ -119,7 +119,7 @@ const DonateButton = ({
       <div className="w-full flex items-stretch gap-2 h-full">
         <div
           ref={containerRef}
-          className="w-[80px] flex-shrink-0 h-full flex items-center justify-center gap-1 px-1 rounded-[8px] border bg-[#FFD44F]"
+          className="w-[80px] flex-shrink-0 h-auto flex items-center justify-center gap-1 px-1 rounded-[8px] border bg-[#FFD44F]"
           style={{ borderColor: "rgba(93, 48, 20, 40%)" }}
         >
           <img

@@ -1185,7 +1185,7 @@ export default function Home() {
                                     <img
                                       src={msg.imageUrl}
                                       alt="message attachment"
-                                      className="w-[80px] h-[80px] flex-shrink-0 object-contain rounded-[4px] cursor-pointer"
+                                      className="w-[80px] h-[80px] flex-shrink-0 object-cover rounded-[4px] cursor-pointer"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setViewImageModal({
@@ -1210,7 +1210,7 @@ export default function Home() {
                               <div className="flex items-center justify-start gap-2 w-full">
                                 <div className="relative w-full h-[12px] bg-[#FFD44F] rounded-[200px] overflow-hidden">
                                   <div
-                                    className="absolute top-0 left-0 h-full transition-all duration-300"
+                                    className="absolute top-0 left-0 h-full transition-all duration-300 rounded-[200px]"
                                     style={{
                                       width: `${Math.min(
                                         100,

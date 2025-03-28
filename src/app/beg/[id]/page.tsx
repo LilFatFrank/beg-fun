@@ -957,7 +957,7 @@ const Page: FC<{ params: Promise<{ id: string }> }> = memo(({ params }) => {
                       alt="comment"
                       className="w-4 h-4"
                     />
-                    <span className="text-[#5D3014] font-bold text-[14px]">
+                    <span className="text-[#5D3014] font-bold text-[14px] hidden lg:block">
                       Comment
                     </span>
                   </button>
