@@ -157,6 +157,7 @@ export default async function Image({ params }: { params: { id: string } }) {
                   gap: "16px",
                   width: "100%",
                   margin: "auto",
+                  marginTop: "20%",
                   background: "white",
                   padding: "24px",
                   border: "1px solid rgba(93, 48, 20, 0.4)",
