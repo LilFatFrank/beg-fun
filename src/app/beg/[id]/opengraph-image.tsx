@@ -123,6 +123,7 @@ export default async function Image({ params }: { params: { id: string } }) {
                   width="48"
                   height="48"
                   alt="BegsFun"
+                  style={{ objectFit: "contain" }}
                 />
                 <span
                   style={{
