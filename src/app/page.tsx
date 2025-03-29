@@ -1160,6 +1160,7 @@ export default function Home() {
                                       className="relative w-[80px] h-[80px] flex-shrink-0 rounded-[4px] cursor-pointer overflow-hidden"
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         setViewImageModal({
                                           isOpen: true,
                                           imageUrl: msg.imageUrl!,
@@ -1188,6 +1189,7 @@ export default function Home() {
                                       className="w-[80px] h-[80px] flex-shrink-0 object-cover rounded-[4px] cursor-pointer"
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         setViewImageModal({
                                           isOpen: true,
                                           imageUrl: msg.imageUrl!,

@@ -134,9 +134,6 @@ export default async function Image({ params }: { params: { id: string } }) {
                   BegsFun
                 </span>
               </div>
-              <p style={{ margin: 0, fontSize: "16px", color: "#5D3014" }}>
-                please send me 1 sol bro
-              </p>
             </div>
             <div
               style={{
@@ -153,170 +150,224 @@ export default async function Image({ params }: { params: { id: string } }) {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "flex-start",
-                  gap: 8,
-                }}
-              >
-                <img
-                  src={`https://www.begsfun.xyz${getFlagIcon(beg.voiceType)}`}
-                  alt={beg.voiceType}
-                  width={40}
-                  height={40}
-                />
-                <p
-                  style={{
-                    color: "#5D3014",
-                    fontWeight: "bold",
-                    fontSize: "32px",
-                  }}
-                >
-                  {beg.walletAddress.slice(0, 4)}...
-                  {beg.walletAddress.slice(-4)}
-                </p>
-                <div
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "20000px",
-                    background: "#FFD44F",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "32px",
-                    fontFamily: "Montserrat",
-                    fontWeight: "medium",
-                    color: "#5D3014",
-                  }}
-                >
-                  {formatMessageTime(beg.timestamp)}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
+                  flexDirection: "column",
                   alignItems: "flex-start",
-                  justifyContent: "flex-start",
+                  justifyContent: "center",
                   gap: "16px",
                   width: "100%",
+                  margin: "auto",
+                  background: "white",
+                  padding: "24px",
+                  border: "1px solid rgba(93, 48, 20, 0.4)",
+                  borderRadius: "8px",
                 }}
               >
-                {/* Media Display */}
-                {beg.imageUrl ? (
-                  isVideoUrl(beg.imageUrl) ? (
-                    <div
-                      style={{
-                        width: "160px",
-                        height: "160px",
-                        background: "rgba(0, 0, 0, 1)",
-                        display: "flex",
-                        flexShrink: 0,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 4,
-                      }}
-                    >
-                      <img
-                        src="https://www.begsfun.xyz/assets/play-icon.svg"
-                        alt="play video"
-                        width="32"
-                        height="32"
-                        style={{ opacity: 0.8 }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={beg.imageUrl}
-                      alt="message attachment"
-                      style={{
-                        width: "160px",
-                        height: "160px",
-                        flexShrink: 0,
-                        objectFit: "cover",
-                        borderRadius: "4px",
-                      }}
-                      width={80}
-                      height={80}
-                    />
-                  )
-                ) : null}
-                <p
-                  style={{
-                    fontSize: "32px",
-                    color: "#000000",
-                    margin: 0,
-                    width: "75%",
-                  }}
-                >
-                  {truncateText(beg.text)}
-                </p>
-              </div>
-              <div
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "24px",
-                    background: "#FFD44F",
-                    borderRadius: "200px",
-                    overflow: "hidden",
-                    marginTop: "16px",
-                    display: "flex",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (Number(beg.fillAmount) / Number(beg.solAmount)) * 100
-                      )}%`,
-                      height: "100%",
-                      background: "linear-gradient(to right, #009A49, #29F188)",
-                      position: "absolute",
-                      borderRadius: "200px",
-                      top: 0,
-                      left: 0,
-                      display: "flex",
-                    }}
-                  />
-                </div>
-                {/* Donation Section */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    borderRadius: "200px",
-                    background: "#FFD44F",
-                    border: "1px solid rgba(93, 48, 20, 0.4)",
-                    marginTop: "16px",
-                    width: "100%",
+                    justifyContent: "flex-start",
+                    gap: 8,
                   }}
                 >
                   <img
-                    src="https://www.begsfun.xyz/assets/solana-brown-icon.svg"
-                    width="32"
-                    height="32"
-                    alt="solana"
+                    src={`https://www.begsfun.xyz${getFlagIcon(beg.voiceType)}`}
+                    alt={beg.voiceType}
+                    width={40}
+                    height={40}
+                  />
+                  <p
+                    style={{
+                      color: "#5D3014",
+                      fontWeight: "bold",
+                      fontSize: "32px",
+                    }}
+                  >
+                    {beg.walletAddress.slice(0, 4)}...
+                    {beg.walletAddress.slice(-4)}
+                  </p>
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "20000px",
+                      background: "#FFD44F",
+                    }}
                   />
                   <span
                     style={{
-                      fontWeight: "bold",
+                      fontSize: "32px",
+                      fontFamily: "Montserrat",
+                      fontWeight: "medium",
                       color: "#5D3014",
-                      fontSize: "24px",
                     }}
                   >
-                    {formatSolAmount(beg.fillAmount)} /{" "}
-                    {formatSolAmount(beg.solAmount)}
+                    {formatMessageTime(beg.timestamp)}
                   </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "flex-start",
+                    gap: "16px",
+                    width: "100%",
+                  }}
+                >
+                  {/* Media Display */}
+                  {beg.imageUrl ? (
+                    isVideoUrl(beg.imageUrl) ? (
+                      <div
+                        style={{
+                          width: "160px",
+                          height: "160px",
+                          background: "rgba(0, 0, 0, 1)",
+                          display: "flex",
+                          flexShrink: 0,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 4,
+                        }}
+                      >
+                        <img
+                          src="https://www.begsfun.xyz/assets/play-icon.svg"
+                          alt="play video"
+                          width="32"
+                          height="32"
+                          style={{ opacity: 0.8 }}
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        src={beg.imageUrl}
+                        alt="message attachment"
+                        style={{
+                          width: "160px",
+                          height: "160px",
+                          flexShrink: 0,
+                          objectFit: "cover",
+                          borderRadius: "4px",
+                        }}
+                        width={80}
+                        height={80}
+                      />
+                    )
+                  ) : null}
+                  <p
+                    style={{
+                      fontSize: "32px",
+                      color: "#000000",
+                      margin: 0,
+                      width: "75%",
+                    }}
+                  >
+                    {truncateText(beg.text)}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "24px",
+                      background: "#FFD44F",
+                      borderRadius: "200px",
+                      overflow: "hidden",
+                      marginTop: "16px",
+                      display: "flex",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (Number(beg.fillAmount) / Number(beg.solAmount)) * 100
+                        )}%`,
+                        height: "100%",
+                        background:
+                          "linear-gradient(to right, #009A49, #29F188)",
+                        position: "absolute",
+                        borderRadius: "200px",
+                        top: 0,
+                        left: 0,
+                        display: "flex",
+                      }}
+                    />
+                  </div>
+                  {/* Donation Section */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "stretch",
+                      justifyContent: "center",
+                      gap: "16px",
+                      marginTop: "16px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(93, 48, 20, 1)",
+                      }}
+                    >
+                      <img
+                        src="https://www.begsfun.xyz/assets/solana-brown-icon.svg"
+                        width="32"
+                        height="32"
+                        alt="solana"
+                      />
+                      <span
+                        style={{
+                          fontWeight: "bold",
+                          color: "#5D3014",
+                          fontSize: "24px",
+                        }}
+                      >
+                        {formatSolAmount(beg.fillAmount)} /{" "}
+                        {formatSolAmount(beg.solAmount)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        background: "#FFD44F",
+                        border: "1px solid rgba(93, 48, 20, 1)",
+                        width: "auto",
+                        flexGrow: "1",
+                      }}
+                    >
+                      <img
+                        src="https://www.begsfun.xyz/assets/bowl-icon.svg"
+                        width="32"
+                        height="32"
+                        alt="solana"
+                      />
+                      <span
+                        style={{
+                          fontWeight: "bold",
+                          color: "#5D3014",
+                          fontSize: "24px",
+                        }}
+                      >
+                        Donate
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
