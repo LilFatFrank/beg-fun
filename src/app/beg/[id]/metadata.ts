@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       };
     }
 
-    const imageUrl = `https://www.begsfun.xyz/beg/${params.id}/opengraph-image.png`;
+    const imageUrl = `https://www.begsfun.xyz/beg/${params.id}/opengraph-image`;
 
     return {
       title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
