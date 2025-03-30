@@ -76,12 +76,6 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "BegsFun",
-    description: "please send me 1 sol bro",
-    images: ["https://www.begsfun.xyz/assets/opengraph-image.jpg"],
-  },
   metadataBase: new URL("https://www.begsfun.xyz"),
   alternates: {
     canonical: "https://www.begsfun.xyz",

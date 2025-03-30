@@ -77,6 +77,9 @@ export default async function Image({ params }: { params: { id: string } }) {
         ),
         {
           ...size,
+          headers: {
+            "Content-Type": "image/png",
+          },
           fonts: [
             {
               name: "Comic Sans MS",
@@ -378,6 +381,9 @@ export default async function Image({ params }: { params: { id: string } }) {
       ),
       {
         ...size,
+        headers: {
+          "Content-Type": "image/png",
+        },
         fonts: [
           {
             name: "Comic Sans MS",
@@ -433,6 +439,9 @@ export default async function Image({ params }: { params: { id: string } }) {
       ),
       {
         ...size,
+        headers: {
+          "Content-Type": "image/png",
+        },
         fonts: [
           {
             name: "Comic Sans MS",

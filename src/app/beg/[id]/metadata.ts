@@ -15,6 +15,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       };
     }
 
+    const imageUrl = `https://www.begsfun.xyz/beg/${params.id}/opengraph-image.png`;
+
     return {
       title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
       description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
@@ -23,7 +25,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
         description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
         images: [
           {
-            url: `/beg/${params.id}/opengraph-image`,
+            url: imageUrl,
             width: 1200,
             height: 630,
             alt: `Beg by ${beg.walletAddress.slice(0, 4)}...${beg.walletAddress.slice(-4)}`,
@@ -34,7 +36,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
         card: 'summary_large_image',
         title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
         description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
-        images: [`/beg/${params.id}/opengraph-image`],
+        images: [imageUrl],
       },
     };
   } catch (e) {
