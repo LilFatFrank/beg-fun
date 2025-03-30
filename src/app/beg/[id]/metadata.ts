@@ -16,13 +16,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     }
 
     const imageUrl = `https://www.begsfun.xyz/beg/${params.id}/opengraph-image`;
+    const title = `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`;
+    const description = `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`;
 
     return {
-      title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
-      description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
+      title,
+      description,
       openGraph: {
-        title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
-        description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
+        title,
+        description,
         images: [
           {
             url: imageUrl,
@@ -34,9 +36,18 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${beg.text.slice(0, 50)}${beg.text.length > 50 ? '...' : ''} | BegsFun`,
-        description: `${Number(beg.fillAmount).toFixed(2)} / ${Number(beg.solAmount).toFixed(2)} SOL - ${beg.text.slice(0, 150)}${beg.text.length > 150 ? '...' : ''}`,
-        images: [imageUrl],
+        title,
+        description,
+        images: [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: `Beg by ${beg.walletAddress.slice(0, 4)}...${beg.walletAddress.slice(-4)}`,
+          },
+        ],
+        creator: '@begsfun',
+        site: '@begsfun',
       },
     };
   } catch (e) {

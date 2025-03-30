@@ -13,6 +13,12 @@ export const size = {
   height: 630,
 };
 
+// Add cache control headers
+export const headers = {
+  'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
+  'Content-Type': 'image/png',
+};
+
 // Helper function to truncate text and add "...view more"
 function truncateText(text: string, maxLength = 150) {
   // Reduced to accommodate "view more"
