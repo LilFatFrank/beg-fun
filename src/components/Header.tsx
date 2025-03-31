@@ -20,7 +20,7 @@ const AppHeader = () => {
       <div className="lg:flex w-full bg-white p-2 items-center h-auto justify-between rounded-[16px] border border-[#8F95B2] hidden">
         <div className="flex-shrink-0 flex items-center gap-4 justify-end">
           <img
-            src="/assets/logo-icon.svg"
+            src="/assets/logo-icon-fav.svg"
             alt="logo"
             className="w-16 h-16 rounded-[8px]"
           />
@@ -53,7 +53,7 @@ const AppHeader = () => {
       <div className="relative flex items-center justify-between w-full mb-4 lg:hidden">
         <div className="lg:hidden">
           <div className="flex items-center justify-center gap-1">
-            <img src="/assets/logo-icon.svg" alt="logo" className="w-10 h-10" />
+            <img src="/assets/logo-icon-fav.svg" alt="logo" className="w-10 h-10" />
             <p className="text-[20px] leading-tight text-[#5D3014]">BegsFun</p>
           </div>
           <p className="text-[12px] text-[#5D3014] leading-tight mt-[-2px]">

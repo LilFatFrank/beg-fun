@@ -27,6 +27,7 @@ import { FC, memo, use, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Virtuoso } from "react-virtuoso";
 import DonateButton from "@/components/DonateButton";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 
 const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
   ({ params }) => {
@@ -60,14 +61,11 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
       imageUrl: "",
       isVideo: false,
     });
-    const websocketRef = useRef<WebSocket | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [comment, setComment] = useState("");
-    const websocketRetries = useRef(0);
-    const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const { id } = use(params);
     const { connected, publicKey, sendTransaction } = useWallet();
     const { push } = useRouter();
@@ -94,36 +92,16 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
       has_prev: false,
     });
     const [isSendingComment, setIsSendingComment] = useState(false);
+    const { websocket, onMessage } = useWebSocket();
 
     const connection = new Connection(process.env.NEXT_PUBLIC_RPC!);
     const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
       ? process.env.NEXT_PUBLIC_ADMIN_WALLETS.split(",")
       : [];
 
-    const setupWebSocket = useCallback(() => {
-      if (websocketRef.current?.readyState === WebSocket.OPEN) {
-        return;
-      }
-
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
-
-      websocketRef.current = new WebSocket(
-        "wss://q1qqf9y8gb.execute-api.ap-south-1.amazonaws.com/dev/"
-      );
-
-      websocketRef.current.onopen = () => {
-        console.log("WebSocket connection established");
-        websocketRetries.current = 0;
-        pingIntervalRef.current = setInterval(() => {
-          if (websocketRef.current?.readyState === WebSocket.OPEN) {
-            websocketRef.current.send(JSON.stringify({ type: "ping" }));
-          }
-        }, 30000);
-      };
-
-      websocketRef.current.onmessage = (event) => {
+    // Set up WebSocket message handler
+    useEffect(() => {
+      const cleanup = onMessage((event: MessageEvent) => {
         try {
           const receivedMessage = JSON.parse(event.data);
           if (
@@ -131,7 +109,21 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
             receivedMessage.type === "begMessageDeletedConfirmation"
           ) {
             push("/");
-          } else if (
+          } else if (receivedMessage.type === "begMessageUpdate" ||
+            receivedMessage.type === "begMessageUpdateConfirmation") {
+              if (
+                messageRef.current &&
+                receivedMessage.message_id &&
+                messageRef.current._id === receivedMessage.message_id
+              ) {
+                setMessage({
+                  ...messageRef.current,
+                  begStatus: receivedMessage.begStatus,
+                  fillAmount: receivedMessage.fillAmount || "0",
+                });
+              }
+            }
+          else if (
             receivedMessage.type === "begMessageReaction" ||
             receivedMessage.type === "begMessageReactionConfirmation"
           ) {
@@ -197,48 +189,20 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           toast.error("Error parsing message");
           console.error("Error parsing message:", error);
         }
-      };
+      });
 
-      websocketRef.current.onclose = () => {
-        console.log("WebSocket connection closed");
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-          pingIntervalRef.current = null;
-        }
-
-        setTimeout(() => {
-          console.log("Reconnecting WebSocket...");
-          setupWebSocket();
-        }, Math.min(1000 * Math.pow(2, websocketRetries.current++), 30000));
-      };
-
-      websocketRef.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-    }, [message]);
-
-    useEffect(() => {
-      setupWebSocket();
-
-      // Cleanup function when component unmounts
       return () => {
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-        }
-
-        if (websocketRef.current) {
-          websocketRef.current.close();
-        }
+        cleanup();
       };
-    }, [setupWebSocket]);
+    }, [onMessage, push]);
 
     const deleteBegMessage = (messageId: string) => {
       try {
         if (
-          websocketRef.current &&
-          websocketRef.current.readyState === WebSocket.OPEN
+          websocket &&
+          websocket.readyState === WebSocket.OPEN
         ) {
-          websocketRef.current.send(
+          websocket.send(
             JSON.stringify({
               action: "deleteBegMessage",
               messageId,
@@ -258,12 +222,12 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
     const deleteComment = (commentId: string) => {
       try {
         if (
-          websocketRef.current &&
-          websocketRef.current.readyState === WebSocket.OPEN
+          websocket &&
+          websocket.readyState === WebSocket.OPEN
         ) {
           setDeletingCommentIds((prev) => [...prev, commentId]);
 
-          websocketRef.current.send(
+          websocket.send(
             JSON.stringify({
               action: "deleteBegComment",
               commentId,
@@ -282,14 +246,14 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
 
     const reactToBegMessage = (messageId: string, reactionType: string) => {
       if (
-        !websocketRef.current ||
-        websocketRef.current.readyState !== WebSocket.OPEN
+        !websocket ||
+        websocket.readyState !== WebSocket.OPEN
       ) {
         console.error("WebSocket connection not open");
         return;
       }
 
-      websocketRef.current.send(
+      websocket.send(
         JSON.stringify({
           action: "reactToBegMessage",
           messageId,
@@ -382,7 +346,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         const newFillAmount = Number(message.fillAmount) + Number(amount);
         const isFilled = newFillAmount >= Number(message.solAmount);
 
-        websocketRef.current?.send(
+        websocket?.send(
           JSON.stringify({
             action: "updateBegMessage",
             messageId,
@@ -580,7 +544,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           return;
         }
 
-        if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+        if (websocket?.readyState !== WebSocket.OPEN) {
           toast.error("Connection error. Please try again.");
           return;
         }
@@ -608,7 +572,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           imageUrl: imageUrl,
         };
 
-        websocketRef.current.send(JSON.stringify(messageData));
+        websocket.send(JSON.stringify(messageData));
 
         setComment("");
         setUploadedImage(null);

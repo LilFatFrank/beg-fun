@@ -28,6 +28,7 @@ const DonateComponent = ({
       return;
     }
     onDonate(amount);
+    setAmount('');
   }, [amount]);
 
   useEffect(() => {
@@ -113,6 +114,10 @@ const DonateComponent = ({
           <input
             placeholder="sol amount"
             value={amount}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
             onChange={handleAmountChange}
             step="0.01"
             min="0"

@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { formatMessageTime } from "@/utils";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 
 type LiveMessage = {
   walletAddress: string;
@@ -22,9 +22,7 @@ const LiveChat = () => {
   const { publicKey, connected } = useWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const websocketRef = useRef<WebSocket | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const websocketRetries = useRef(0);
+  const { websocket, onMessage } = useWebSocket();
 
   // Admin wallet addresses
   const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
@@ -62,118 +60,69 @@ const LiveChat = () => {
     fetchMessages();
   }, []);
 
-  // Set up WebSocket connection
+  // Set up WebSocket message handler
   useEffect(() => {
-    const setupWebSocket = () => {
-      if (websocketRef.current?.readyState === WebSocket.OPEN) {
-        return;
-      }
+    const cleanup = onMessage((event: MessageEvent) => {
+      try {
+        const receivedMessage = JSON.parse(event.data);
 
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
-
-      websocketRef.current = new WebSocket(
-        "wss://q1qqf9y8gb.execute-api.ap-south-1.amazonaws.com/dev/"
-      );
-
-      websocketRef.current.onopen = () => {
-        console.log("WebSocket connection established for live chat");
-        websocketRetries.current = 0; // Reset retry counter on successful connection
-        pingIntervalRef.current = setInterval(() => {
-          if (websocketRef.current?.readyState === WebSocket.OPEN) {
-            websocketRef.current.send(JSON.stringify({ type: "ping" }));
-          }
-        }, 30000);
-      };
-
-      websocketRef.current.onmessage = (event) => {
-        try {
-          const receivedMessage = JSON.parse(event.data);
-
-          if (
-            receivedMessage.type === "begLiveMessage" ||
-            receivedMessage.type === "begLiveMessageConfirmation"
-          ) {
-            // Add new message to the state
-            setMessages((prevMessages) => {
-              // Check if message with this ID already exists
-              const messageExists = prevMessages.some(
-                (msg) => msg._id === receivedMessage.message_id
-              );
-              if (messageExists) {
-                return prevMessages; // Don't add duplicate message
-              }
-
-              // Add new message
-              return [
-                ...prevMessages,
-                {
-                  walletAddress: receivedMessage.walletAddress,
-                  message: receivedMessage.message,
-                  _id: receivedMessage.message_id,
-                  timestamp: receivedMessage.timestamp,
-                },
-              ];
-            });
-
-            // Scroll to bottom after adding a new message
-            setTimeout(() => {
-              if (chatContainerRef.current) {
-                chatContainerRef.current.scrollTop =
-                  chatContainerRef.current.scrollHeight;
-              }
-            }, 100);
-          } else if (
-            receivedMessage.type === "begLiveMessageDeleted" ||
-            receivedMessage.type === "begLiveMessageDeletedConfirmation"
-          ) {
-            // Remove deleted message
-            setMessages((prevMessages) =>
-              prevMessages.filter(
-                (message) => message._id !== receivedMessage.message_id
-              )
+        if (
+          receivedMessage.type === "begLiveMessage" ||
+          receivedMessage.type === "begLiveMessageConfirmation"
+        ) {
+          // Add new message to the state
+          setMessages((prevMessages) => {
+            // Check if message with this ID already exists
+            const messageExists = prevMessages.some(
+              (msg) => msg._id === receivedMessage.message_id
             );
-
-            if (receivedMessage.type === "begLiveMessageDeletedConfirmation") {
-              toast.success("Message deleted!");
+            if (messageExists) {
+              return prevMessages; // Don't add duplicate message
             }
+
+            // Add new message
+            return [
+              ...prevMessages,
+              {
+                walletAddress: receivedMessage.walletAddress,
+                message: receivedMessage.message,
+                _id: receivedMessage.message_id,
+                timestamp: receivedMessage.timestamp,
+              },
+            ];
+          });
+
+          // Scroll to bottom after adding a new message
+          setTimeout(() => {
+            if (chatContainerRef.current) {
+              chatContainerRef.current.scrollTop =
+                chatContainerRef.current.scrollHeight;
+            }
+          }, 100);
+        } else if (
+          receivedMessage.type === "begLiveMessageDeleted" ||
+          receivedMessage.type === "begLiveMessageDeletedConfirmation"
+        ) {
+          // Remove deleted message
+          setMessages((prevMessages) =>
+            prevMessages.filter(
+              (message) => message._id !== receivedMessage.message_id
+            )
+          );
+
+          if (receivedMessage.type === "begLiveMessageDeletedConfirmation") {
+            toast.success("Message deleted!");
           }
-        } catch (error) {
-          console.error("Error parsing message:", error);
         }
-      };
-
-      websocketRef.current.onclose = () => {
-        console.log("WebSocket connection closed for live chat");
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-          pingIntervalRef.current = null;
-        }
-
-        setTimeout(() => {
-          console.log("Reconnecting WebSocket for live chat...");
-          setupWebSocket();
-        }, Math.min(1000 * Math.pow(2, websocketRetries.current++), 30000));
-      };
-
-      websocketRef.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-    };
-
-    setupWebSocket();
+      } catch (error) {
+        console.error("Error parsing message:", error);
+      }
+    });
 
     return () => {
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-      }
-
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
+      cleanup();
     };
-  }, []);
+  }, [onMessage]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -209,7 +158,7 @@ const LiveChat = () => {
       return;
     }
 
-    if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+    if (websocket?.readyState !== WebSocket.OPEN) {
       toast.error("Connection error. Please try again.");
       return;
     }
@@ -240,7 +189,7 @@ const LiveChat = () => {
       message: messageText,
     };
 
-    websocketRef.current.send(JSON.stringify(messageData));
+    websocket.send(JSON.stringify(messageData));
     setMessageText("");
   };
 
@@ -255,7 +204,7 @@ const LiveChat = () => {
       return;
     }
 
-    if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+    if (websocket?.readyState !== WebSocket.OPEN) {
       toast.error("Connection error. Please try again.");
       return;
     }
@@ -266,7 +215,7 @@ const LiveChat = () => {
       messageId: messageId,
     };
 
-    websocketRef.current.send(JSON.stringify(deleteData));
+    websocket.send(JSON.stringify(deleteData));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

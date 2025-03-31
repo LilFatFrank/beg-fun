@@ -9,6 +9,7 @@ import AppHeader from "@/components/Header";
 import LiveChat from "@/components/LiveChat";
 import AudioOptions from "@/components/AudioOptions";
 import Footer from "@/components/Footer";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,30 +28,30 @@ export const metadata: Metadata = {
     icon: [
       {
         rel: "icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
         sizes: "any",
         type: "image/svg+xml",
       },
       {
         rel: "shortcut icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
         type: "image/svg+xml",
       },
       {
         rel: "apple-touch-icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
         type: "image/svg+xml",
       },
     ],
     shortcut: [
       {
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
         type: "image/svg+xml",
       },
     ],
     apple: [
       {
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
         sizes: "any",
         type: "image/svg+xml",
       },
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
     other: [
       {
         rel: "mask-icon",
-        url: "/assets/logo-icon.svg",
+        url: "/assets/logo-icon-fav.svg",
       },
     ],
   },
@@ -108,24 +109,26 @@ export default function RootLayout({
           className="w-full h-full fixed top-0 left-0 right-0 bottom-0 z-[-1] object-cove opacity-[45%] hidden lg:block"
         />
         <ClientWalletProvider>
-          <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
-            <div className="grow flex flex-col w-full py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
-              <AppHeader />
-              <div className="w-full flex flex-1 h-full gap-4 md:gap-6 lg:gap-[40px] lg:py-4 lg:h-[calc(100%-60px)]">
-                <div className="w-full lg:w-[75%] flex flex-col">
-                  {children}
-                </div>
-                {/* Right section - hidden on mobile */}
-                <div className="hidden lg:block w-[25%]">
-                  <div className="flex-grow mt-6 flex flex-col gap-4 w-full h-full">
-                    <LiveChat />
-                    <AudioOptions />
+          <WebSocketProvider>
+            <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
+              <div className="grow flex flex-col w-full py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
+                <AppHeader />
+                <div className="w-full flex flex-1 h-full gap-4 md:gap-6 lg:gap-[40px] lg:py-4 lg:h-[calc(100%-60px)]">
+                  <div className="w-full lg:w-[75%] flex flex-col">
+                    {children}
+                  </div>
+                  {/* Right section - hidden on mobile */}
+                  <div className="hidden lg:block w-[25%]">
+                    <div className="flex-grow mt-6 flex flex-col gap-4 w-full h-full">
+                      <LiveChat />
+                      <AudioOptions />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          <Footer />
+            <Footer />
+          </WebSocketProvider>
         </ClientWalletProvider>
       </body>
     </html>

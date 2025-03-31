@@ -31,8 +31,10 @@ import PlayPauseButton from "@/components/PlayPauseButton";
 import { ReactionsType } from "@/interfaces";
 import MessageText from "@/components/MessageText";
 import Link from "next/link";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 
 export default function Home() {
+  const { websocket, onMessage } = useWebSocket();
   const [messages, setMessages] = useState<
     {
       walletAddress: string;
@@ -72,9 +74,6 @@ export default function Home() {
   const [messageText, setMessageText] = useState("");
   const [solAmount, setSolAmount] = useState("");
   const [lastActive, setLastActive] = useState<number>(Date.now());
-  const websocketRef = useRef<WebSocket | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const websocketRetries = useRef(0);
   const idleCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [isInCooldown, setIsInCooldown] = useState(false);
@@ -233,30 +232,10 @@ export default function Home() {
     }
   }, [pagination.has_next, pagination.page, pagination.limit, isLoadingMore]);
 
-  const setupWebSocket = useCallback(() => {
-    if (websocketRef.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    if (websocketRef.current) {
-      websocketRef.current.close();
-    }
-
-    websocketRef.current = new WebSocket(
-      "wss://q1qqf9y8gb.execute-api.ap-south-1.amazonaws.com/dev/"
-    );
-
-    websocketRef.current.onopen = () => {
-      console.log("WebSocket connection established");
-      websocketRetries.current = 0; // Reset retry counter on successful connection
-      pingIntervalRef.current = setInterval(() => {
-        if (websocketRef.current?.readyState === WebSocket.OPEN) {
-          websocketRef.current.send(JSON.stringify({ type: "ping" }));
-        }
-      }, 30000);
-    };
-
-    websocketRef.current.onmessage = (event) => {
+  // Setup WebSocket message handler
+  useEffect(() => {
+    const cleanup = onMessage((event) => {
+      console.log("Message received in page:", event);
       try {
         const receivedMessage = JSON.parse(event.data);
         if (
@@ -264,7 +243,6 @@ export default function Home() {
           receivedMessage.type === "begMessageConfirmation"
         ) {
           setMessages((prevMessages) => {
-            // Check if message with this ID already exists
             const messageExists = prevMessages.some(
               (msg) => msg._id === receivedMessage.message_id
             );
@@ -272,7 +250,6 @@ export default function Home() {
               return prevMessages;
             }
 
-            // Add new message at the beginning with isNew flag
             return [
               {
                 walletAddress: receivedMessage.walletAddress,
@@ -286,7 +263,7 @@ export default function Home() {
                 fillAmount: receivedMessage.fillAmount || "0",
                 reactions: receivedMessage.reactions || {},
                 imageUrl: receivedMessage.imageUrl || null,
-                isNew: true, // Mark as new for animation
+                isNew: true,
               },
               ...prevMessages,
             ];
@@ -393,25 +370,12 @@ export default function Home() {
         toast.error("Error parsing message");
         console.error("Error parsing message:", error);
       }
-    };
+    });
 
-    websocketRef.current.onclose = () => {
-      console.log("WebSocket connection closed");
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = null;
-      }
-
-      setTimeout(() => {
-        console.log("Reconnecting WebSocket...");
-        setupWebSocket();
-      }, Math.min(1000 * Math.pow(2, websocketRetries.current++), 30000));
+    return () => {
+      cleanup();
     };
-
-    websocketRef.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-  }, []);
+  }, [onMessage]);
 
   const handleSendMessage = async () => {
     try {
@@ -458,7 +422,7 @@ export default function Home() {
         return;
       }
 
-      if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+      if (websocket?.readyState !== WebSocket.OPEN) {
         toast.error("Connection error. Please try again.");
         return;
       }
@@ -487,7 +451,7 @@ export default function Home() {
         imageUrl: imageUrl,
       };
 
-      websocketRef.current.send(JSON.stringify(messageData));
+      websocket.send(JSON.stringify(messageData));
 
       setMessageText("");
       setUploadedImage(null);
@@ -510,13 +474,13 @@ export default function Home() {
   const deleteBegMessage = (messageId: string) => {
     try {
       if (
-        websocketRef.current &&
-        websocketRef.current.readyState === WebSocket.OPEN
+        websocket &&
+        websocket.readyState === WebSocket.OPEN
       ) {
         // Add this message ID to the deleting list
         setDeletingMessageIds((prev) => [...prev, messageId]);
 
-        websocketRef.current.send(
+        websocket.send(
           JSON.stringify({
             action: "deleteBegMessage",
             messageId,
@@ -532,22 +496,6 @@ export default function Home() {
       console.log("error", error);
     }
   };
-
-  // Setup WebSocket connection
-  useEffect(() => {
-    setupWebSocket();
-
-    // Cleanup function when component unmounts
-    return () => {
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-      }
-
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
-    };
-  }, [setupWebSocket]);
 
   // Handle user activity tracking
   useEffect(() => {
@@ -718,7 +666,7 @@ export default function Home() {
       const newFillAmount = Number(currentMessage.fillAmount) + Number(amount);
       const isFilled = newFillAmount >= Number(currentMessage.solAmount);
 
-      websocketRef.current?.send(
+      websocket?.send(
         JSON.stringify({
           action: "updateBegMessage",
           messageId,
@@ -761,14 +709,14 @@ export default function Home() {
 
   const reactToBegMessage = (messageId: string, reactionType: string) => {
     if (
-      !websocketRef.current ||
-      websocketRef.current.readyState !== WebSocket.OPEN
+      !websocket ||
+      websocket.readyState !== WebSocket.OPEN
     ) {
       console.error("WebSocket connection not open");
       return;
     }
 
-    websocketRef.current.send(
+    websocket.send(
       JSON.stringify({
         action: "reactToBegMessage",
         messageId,
@@ -1653,7 +1601,9 @@ export default function Home() {
                           />
                           <span
                             className={`${
-                              sa === solAmount ? "text-black" : "text-[#FFD44F]"
+                              sa === solAmount
+                                ? "text-black"
+                                : "text-[#FFD44F]"
                             } text-[12px] leading-tight`}
                           >
                             {sa}

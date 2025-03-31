@@ -136,16 +136,18 @@ const DonateButton = ({
           </span>
         </div>
         <button
-          onClick={() =>
+          onClick={(e) =>{
+            e.stopPropagation();
+            e.preventDefault();
             handleDonateClick(
               msg.walletAddress,
               msg.solAmount,
               msg._id,
               msg.fillAmount
             )
-          }
+          }}
           disabled={donatingMessageId === msg._id}
-          className={`grow w-full border-[#000000] bg-gradient-to-r from-[#000000] to-[#454545] cursor-pointer rounded-[8px] disabled:opacity-70 border lg:h-[32px]`}
+          className={`grow w-full flex items-center justify-center border-[#000000] bg-gradient-to-r from-[#000000] to-[#454545] cursor-pointer rounded-[8px] disabled:opacity-70 border lg:h-[32px]`}
           style={{
             filter: "drop-shadow(0px 4px 8px rgba(93, 48, 20, 0.4))",
           }}
