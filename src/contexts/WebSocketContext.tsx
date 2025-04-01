@@ -43,7 +43,6 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     websocketRef.current.onmessage = (event) => {
-      console.log("WebSocket message received:", event);
       messageHandlers.current.forEach(handler => handler(event));
       
       try {

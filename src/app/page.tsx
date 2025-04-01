@@ -235,7 +235,6 @@ export default function Home() {
   // Setup WebSocket message handler
   useEffect(() => {
     const cleanup = onMessage((event) => {
-      console.log("Message received in page:", event);
       try {
         const receivedMessage = JSON.parse(event.data);
         if (
