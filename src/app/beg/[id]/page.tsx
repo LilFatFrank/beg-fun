@@ -13,6 +13,7 @@ import {
   getRandomVoiceType,
   isVideoUrl,
   reactions,
+  formatSolAmount,
 } from "@/utils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -21,6 +22,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import { useRouter } from "next/navigation";
 import { FC, memo, use, useCallback, useEffect, useRef, useState } from "react";
@@ -28,6 +30,8 @@ import { toast } from "sonner";
 import { Virtuoso } from "react-virtuoso";
 import DonateButton from "@/components/DonateButton";
 import { useWebSocket } from "@/contexts/WebSocketContext";
+import BN from 'bn.js';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
   ({ params }) => {
@@ -111,6 +115,11 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
             push("/");
           } else if (receivedMessage.type === "begMessageUpdate" ||
             receivedMessage.type === "begMessageUpdateConfirmation") {
+              toast.success(
+                `Donation of ${formatSolAmount(
+                  receivedMessage.fillAmount
+                )} sol successful!`
+              );
               if (
                 messageRef.current &&
                 receivedMessage.message_id &&
@@ -293,17 +302,14 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           return;
         }
 
-        const transferAmount = Number(amount) * LAMPORTS_PER_SOL;
-        const fee_percent = 1;
+        const totalAmount = Number(amount) * LAMPORTS_PER_SOL;
+        const feeAmount = Math.round((totalAmount * 1) / 100); // 1% fee
+        const swapAmount = totalAmount - feeAmount; // 99% for swap
 
         const toPubkey = new PublicKey(recipientAddress);
         const feePubkey = new PublicKey(
           process.env.NEXT_PUBLIC_BEG_ADMIN_ACCOUNT!
         );
-
-        const lamports = Math.round(transferAmount);
-        const sendAmount = Math.round((lamports * (100 - fee_percent)) / 100);
-        const feeAmount = Math.round((lamports * fee_percent) / 100);
 
         const transaction = new Transaction();
 
@@ -313,18 +319,122 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
 
+        // Add fee transfer instruction
         transaction.add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey,
-            lamports: sendAmount,
-          }),
           SystemProgram.transfer({
             fromPubkey: publicKey,
             toPubkey: feePubkey,
             lamports: feeAmount,
           })
         );
+
+        // Get quote for SOL to BEGS swap
+        console.log("Requesting quote with params:", {
+          inputMint: "So11111111111111111111111111111111111111112",
+          outputMint: process.env.NEXT_PUBLIC_PUMP_ADD,
+          amount: swapAmount,
+        });
+
+        const quoteResponse = await fetch(
+          `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${process.env.NEXT_PUBLIC_PUMP_ADD}&amount=${swapAmount}&slippageBps=100&onlyDirectRoutes=false&asLegacyTransaction=true`
+        ).then(res => res.json());
+
+        console.log("Quote response:", quoteResponse);
+
+        // Check if the response has the required data
+        if (!quoteResponse || !quoteResponse.outAmount) {
+          console.error("Quote response error:", quoteResponse);
+          throw new Error(`Failed to get quote from Jupiter: ${JSON.stringify(quoteResponse)}`);
+        }
+
+        // Get swap transaction
+        console.log("Requesting swap with params:", {
+          quoteResponse,
+          userPublicKey: publicKey.toBase58(),
+        });
+
+        const swapResponse = await fetch(
+          "https://quote-api.jup.ag/v6/swap",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              quoteResponse,
+              userPublicKey: publicKey.toBase58(),
+              wrapUnwrapSOL: true,
+              computeUnitPriceMicroLamports: 1000,
+              asLegacyTransaction: true,
+            }),
+          }
+        ).then(res => res.json());
+
+        console.log("Swap response:", swapResponse);
+
+        if (!swapResponse || !swapResponse.swapTransaction) {
+          console.error("Swap response error:", swapResponse);
+          throw new Error(`Failed to create swap transaction: ${JSON.stringify(swapResponse)}`);
+        }
+
+        // Add swap transaction to our transaction
+        const swapTransaction = Transaction.from(Buffer.from(swapResponse.swapTransaction, 'base64'));
+        transaction.add(...swapTransaction.instructions);
+
+        // Find our (sender's) associated token account for BEGS
+        const [senderTokenAccount] = await PublicKey.findProgramAddress(
+          [
+            publicKey.toBuffer(),
+            TOKEN_PROGRAM_ID.toBuffer(),
+            new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!).toBuffer(),
+          ],
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        );
+
+        // Find the recipient's associated token account for BEGS
+        const [recipientTokenAccount] = await PublicKey.findProgramAddress(
+          [
+            toPubkey.toBuffer(),
+            TOKEN_PROGRAM_ID.toBuffer(),
+            new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!).toBuffer(),
+          ],
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        );
+
+        // Add create associated token account instruction if it doesn't exist
+        const recipientTokenAccountInfo = await connection.getAccountInfo(recipientTokenAccount);
+        if (!recipientTokenAccountInfo) {
+          transaction.add(
+            // Create associated token account
+            {
+              programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+              keys: [
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: recipientTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: toPubkey, isSigner: false, isWritable: false },
+                { pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!), isSigner: false, isWritable: false },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+              ],
+              data: Buffer.from([]),
+            }
+          );
+        }
+
+        // Calculate BEGS amount to send to recipient (95% of swapped amount)
+        const begsAmount = Math.floor((Number(quoteResponse.outAmount) * 95) / 100);
+
+        // Add BEGS transfer instruction from our ATA to recipient's ATA
+        transaction.add({
+          programId: TOKEN_PROGRAM_ID,
+          keys: [
+            { pubkey: senderTokenAccount, isSigner: false, isWritable: true }, // From our ATA
+            { pubkey: recipientTokenAccount, isSigner: false, isWritable: true }, // To recipient's ATA
+            { pubkey: publicKey, isSigner: true, isWritable: false }, // Authority
+          ],
+          data: Buffer.from([3, ...new BN(begsAmount).toArray('le', 8)]), // Transfer instruction
+        });
 
         const signature = await sendTransaction(transaction, connection);
 
