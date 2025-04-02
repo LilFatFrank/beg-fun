@@ -1111,6 +1111,9 @@ export default function Home() {
                                   />
                                   <a
                                     href={`https://solscan.io/account/${msg.walletAddress}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                    }}
                                     target="_blank"
                                     rel="noreferrer noopener nofollower"
                                     className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"

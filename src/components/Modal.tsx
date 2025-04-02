@@ -41,7 +41,7 @@ const Modal = ({
       <div
         className="bg-[#FFD44F] w-full max-w-[540px] p-4 rounded-[8px] border border-[#FF9933] max-h-[80vh] overflow-y-auto"
         style={{ ...style }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {e.stopPropagation(); e.preventDefault();}}
       >
         {children}
       </div>

@@ -341,12 +341,6 @@ const LiveChat = () => {
                         />
                       )}
                     </p>
-                    <p
-                      className="text-[10px]"
-                      style={{ color: getColorForAddress(msg.walletAddress) }}
-                    >
-                      {formatMessageTime(msg.timestamp)}
-                    </p>
                   </div>
                   <p className="font-normal text-[14px] text-[#121212] break-all">
                     {renderMessageWithLinks(msg.message)}
