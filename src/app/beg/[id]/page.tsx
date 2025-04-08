@@ -30,12 +30,18 @@ import { toast } from "sonner";
 import { Virtuoso } from "react-virtuoso";
 import DonateButton from "@/components/DonateButton";
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import BN from 'bn.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import BN from "bn.js";
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import Link from "next/link";
+import { useUser } from "@/contexts/UserContext";
 
 const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
   ({ params }) => {
     const [isLoading, setIsLoading] = useState(false);
+    const { userData: contextUserData } = useUser();
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [isDonating, setIsDonating] = useState(false);
     const [message, setMessage] = useState<{
@@ -49,7 +55,9 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
       voiceId: string;
       fillAmount: string;
       reactions: ReactionsType;
+      lastUpdatedAt?: string;
       imageUrl?: string;
+      beggedTo?: string;
     } | null>(null);
     const messageRef = useRef(message);
     messageRef.current = message;
@@ -113,26 +121,27 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
             receivedMessage.type === "begMessageDeletedConfirmation"
           ) {
             push("/");
-          } else if (receivedMessage.type === "begMessageUpdate" ||
-            receivedMessage.type === "begMessageUpdateConfirmation") {
-              toast.success(
-                `Donation of ${formatSolAmount(
-                  receivedMessage.fillAmount
-                )} sol successful!`
-              );
-              if (
-                messageRef.current &&
-                receivedMessage.message_id &&
-                messageRef.current._id === receivedMessage.message_id
-              ) {
-                setMessage({
-                  ...messageRef.current,
-                  begStatus: receivedMessage.begStatus,
-                  fillAmount: receivedMessage.fillAmount || "0",
-                });
-              }
+          } else if (
+            receivedMessage.type === "begMessageUpdate" ||
+            receivedMessage.type === "begMessageUpdateConfirmation"
+          ) {
+            toast.success(
+              `Donation of ${formatSolAmount(
+                receivedMessage.fillAmount
+              )} sol successful!`
+            );
+            if (
+              messageRef.current &&
+              receivedMessage.message_id &&
+              messageRef.current._id === receivedMessage.message_id
+            ) {
+              setMessage({
+                ...messageRef.current,
+                begStatus: receivedMessage.begStatus,
+                fillAmount: receivedMessage.fillAmount || "0",
+              });
             }
-          else if (
+          } else if (
             receivedMessage.type === "begMessageReaction" ||
             receivedMessage.type === "begMessageReactionConfirmation"
           ) {
@@ -207,10 +216,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
 
     const deleteBegMessage = (messageId: string) => {
       try {
-        if (
-          websocket &&
-          websocket.readyState === WebSocket.OPEN
-        ) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
           websocket.send(
             JSON.stringify({
               action: "deleteBegMessage",
@@ -230,10 +236,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
 
     const deleteComment = (commentId: string) => {
       try {
-        if (
-          websocket &&
-          websocket.readyState === WebSocket.OPEN
-        ) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
           setDeletingCommentIds((prev) => [...prev, commentId]);
 
           websocket.send(
@@ -254,10 +257,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
     };
 
     const reactToBegMessage = (messageId: string, reactionType: string) => {
-      if (
-        !websocket ||
-        websocket.readyState !== WebSocket.OPEN
-      ) {
+      if (!websocket || websocket.readyState !== WebSocket.OPEN) {
         console.error("WebSocket connection not open");
         return;
       }
@@ -337,14 +337,16 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
 
         const quoteResponse = await fetch(
           `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${process.env.NEXT_PUBLIC_PUMP_ADD}&amount=${swapAmount}&slippageBps=100&onlyDirectRoutes=false&asLegacyTransaction=true`
-        ).then(res => res.json());
+        ).then((res) => res.json());
 
         console.log("Quote response:", quoteResponse);
 
         // Check if the response has the required data
         if (!quoteResponse || !quoteResponse.outAmount) {
           console.error("Quote response error:", quoteResponse);
-          throw new Error(`Failed to get quote from Jupiter: ${JSON.stringify(quoteResponse)}`);
+          throw new Error(
+            `Failed to get quote from Jupiter: ${JSON.stringify(quoteResponse)}`
+          );
         }
 
         // Get swap transaction
@@ -353,32 +355,33 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           userPublicKey: publicKey.toBase58(),
         });
 
-        const swapResponse = await fetch(
-          "https://quote-api.jup.ag/v6/swap",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              quoteResponse,
-              userPublicKey: publicKey.toBase58(),
-              wrapUnwrapSOL: true,
-              computeUnitPriceMicroLamports: 1000,
-              asLegacyTransaction: true,
-            }),
-          }
-        ).then(res => res.json());
+        const swapResponse = await fetch("https://quote-api.jup.ag/v6/swap", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            quoteResponse,
+            userPublicKey: publicKey.toBase58(),
+            wrapUnwrapSOL: true,
+            computeUnitPriceMicroLamports: 1000,
+            asLegacyTransaction: true,
+          }),
+        }).then((res) => res.json());
 
         console.log("Swap response:", swapResponse);
 
         if (!swapResponse || !swapResponse.swapTransaction) {
           console.error("Swap response error:", swapResponse);
-          throw new Error(`Failed to create swap transaction: ${JSON.stringify(swapResponse)}`);
+          throw new Error(
+            `Failed to create swap transaction: ${JSON.stringify(swapResponse)}`
+          );
         }
 
         // Add swap transaction to our transaction
-        const swapTransaction = Transaction.from(Buffer.from(swapResponse.swapTransaction, 'base64'));
+        const swapTransaction = Transaction.from(
+          Buffer.from(swapResponse.swapTransaction, "base64")
+        );
         transaction.add(...swapTransaction.instructions);
 
         // Find our (sender's) associated token account for BEGS
@@ -402,7 +405,9 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         );
 
         // Add create associated token account instruction if it doesn't exist
-        const recipientTokenAccountInfo = await connection.getAccountInfo(recipientTokenAccount);
+        const recipientTokenAccountInfo = await connection.getAccountInfo(
+          recipientTokenAccount
+        );
         if (!recipientTokenAccountInfo) {
           transaction.add(
             // Create associated token account
@@ -410,12 +415,32 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
               programId: ASSOCIATED_TOKEN_PROGRAM_ID,
               keys: [
                 { pubkey: publicKey, isSigner: true, isWritable: true },
-                { pubkey: recipientTokenAccount, isSigner: false, isWritable: true },
+                {
+                  pubkey: recipientTokenAccount,
+                  isSigner: false,
+                  isWritable: true,
+                },
                 { pubkey: toPubkey, isSigner: false, isWritable: false },
-                { pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!), isSigner: false, isWritable: false },
-                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                {
+                  pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!),
+                  isSigner: false,
+                  isWritable: false,
+                },
+                {
+                  pubkey: SystemProgram.programId,
+                  isSigner: false,
+                  isWritable: false,
+                },
+                {
+                  pubkey: TOKEN_PROGRAM_ID,
+                  isSigner: false,
+                  isWritable: false,
+                },
+                {
+                  pubkey: SYSVAR_RENT_PUBKEY,
+                  isSigner: false,
+                  isWritable: false,
+                },
               ],
               data: Buffer.from([]),
             }
@@ -423,17 +448,23 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         }
 
         // Calculate BEGS amount to send to recipient (95% of swapped amount)
-        const begsAmount = Math.floor((Number(quoteResponse.outAmount) * 95) / 100);
+        const begsAmount = Math.floor(
+          (Number(quoteResponse.outAmount) * 95) / 100
+        );
 
         // Add BEGS transfer instruction from our ATA to recipient's ATA
         transaction.add({
           programId: TOKEN_PROGRAM_ID,
           keys: [
             { pubkey: senderTokenAccount, isSigner: false, isWritable: true }, // From our ATA
-            { pubkey: recipientTokenAccount, isSigner: false, isWritable: true }, // To recipient's ATA
+            {
+              pubkey: recipientTokenAccount,
+              isSigner: false,
+              isWritable: true,
+            }, // To recipient's ATA
             { pubkey: publicKey, isSigner: true, isWritable: false }, // Authority
           ],
-          data: Buffer.from([3, ...new BN(begsAmount).toArray('le', 8)]), // Transfer instruction
+          data: Buffer.from([3, ...new BN(begsAmount).toArray("le", 8)]), // Transfer instruction
         });
 
         const signature = await sendTransaction(transaction, connection);
@@ -467,6 +498,35 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
             },
           })
         );
+
+        const updateDonorInfo = {
+          action: "updateBegUserInfo",
+          walletAddress: contextUserData?.walletAddress,
+          updates: {
+            totalDonations: (contextUserData?.totalDonations || 0) + 1,
+            amountDonated: (contextUserData?.amountDonated || 0) + amount,
+          },
+        };
+
+        websocket?.send(JSON.stringify(updateDonorInfo));
+
+        const response = await fetch(
+          `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_user&walletAddress=${recipientAddress}`
+        );
+        const data = await response.json();
+        if (data.message === "User retrieved successfully") {
+          const updateBeggarInfo = {
+            action: "updateBegUserInfo",
+            walletAddress: data.data?.walletAddress,
+            updates: {
+              amountRaised: (data.data?.amountRaised || 0) + amount,
+            },
+          };
+
+          websocket?.send(JSON.stringify(updateBeggarInfo));
+        } else {
+          toast.error("Could not record beggar's amount raised");
+        }
       } catch (error) {
         toast.error("Could not make donation!");
         console.log("Transaction error:", error);
@@ -483,6 +543,11 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
           `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_message&messageId=${id}`
         );
         const data = await response.json();
+        if (data.error) {
+          console.log("here");
+          toast.error("Beg does not exist!");
+          return;
+        }
         setMessage(data.data);
       } catch (error) {
         toast.error("Could not fetch beg details!");
@@ -509,7 +574,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
       } finally {
         setIsLoading(false);
       }
-    }, [id, commentsPagination.limit]);
+    }, [id, commentsPagination?.limit]);
 
     const fetchMoreComments = useCallback(async () => {
       if (!commentsPagination.has_next || isLoadingMore) return;
@@ -531,9 +596,9 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         setIsLoadingMore(false);
       }
     }, [
-      commentsPagination.has_next,
-      commentsPagination.page,
-      commentsPagination.limit,
+      commentsPagination?.has_next,
+      commentsPagination?.page,
+      commentsPagination?.limit,
       isLoadingMore,
       id,
     ]);
@@ -727,9 +792,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <a
-                              href={`https://solscan.io/account/${message.walletAddress}`}
-                              target="_blank"
-                              rel="noreferrer noopener nofollower"
+                              href={`/profile/${message.walletAddress}`}
                               className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
                             >
                               {message.walletAddress.slice(0, 4)}...
@@ -737,7 +800,9 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                             </a>
                             <div className="w-1 h-1 rounded-full bg-[#FFD44F] flex-shrink-0" />
                             <span className="font-[Montserrat] font-medium text-[12px] text-[#5D3014]">
-                              {formatMessageTime(message.timestamp)}
+                              {formatMessageTime(
+                                message.lastUpdatedAt || message.timestamp
+                              )}
                             </span>
                           </div>
                           <div className="flex items-center justify-center gap-2">
@@ -806,6 +871,16 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                                 className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)]"
                               />
                             </div>
+                            <img
+                              src="/assets/share-icon.svg"
+                              about="share"
+                              className="w-6 h-6 rounded-full cursor-pointer shadow-[0px_4px_8px_0px_rgba(0,0,0,0.25)] active:opacity-65"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                window.navigator.clipboard.writeText(window.location.href);
+                              }}
+                            />
                           </div>
                         </div>
                         <div className="w-full flex items-start lg:gap-4 gap-2">
@@ -816,6 +891,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                                 className="relative w-[80px] h-[80px] flex-shrink-0 rounded-[4px] cursor-pointer overflow-hidden"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.preventDefault();
                                   setViewImageModal({
                                     isOpen: true,
                                     imageUrl: message.imageUrl!,
@@ -972,7 +1048,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                   </div>
                 </div>
                 <div
-                  className={`w-full flex items-center justify-start gap-4 mt-[8px]`}
+                  className={`w-full flex items-stretch justify-start gap-4 mt-[8px]`}
                 >
                   <div
                     className="lg:basis-2/3 w-full rounded-[8px] border px-4 py-3 flex max-lg:flex-col items-center gap-2"
@@ -1098,17 +1174,34 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                       </button>
                     </div>
                   </div>
-                  <div className="lg:basis-1/3 lg:block hidden">
-                    <p
-                      className="text-[14px] w-full text-[#5D3014] cursor-pointer"
-                      onClick={(e) => {
-                        handleRemoveImage(e);
-                        setComment("");
-                      }}
+                  {message?.beggedTo ? (
+                    <div
+                      className="lg:basis-1/3 hidden rounded-[8px] border px-4 py-3 w-full text-[14px] font-normal text-[#5D3014] lg:flex items-center"
+                      style={{ borderColor: "rgba(93, 48, 20, 0.32)" }}
                     >
-                      Cancel
-                    </p>
-                  </div>
+                      beg requested to&nbsp;
+                      <Link
+                        href={`/profile/${message?.beggedTo}`}
+                        className="font-semibold"
+                      >
+                        {message?.beggedTo?.slice(0, 4)}...
+                        {message?.beggedTo?.slice(-4)}
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className="mt-2 flex lg:hidden rounded-[8px] border px-4 py-3 w-full text-[14px] font-normal text-[#5D3014] items-center"
+                  style={{ borderColor: "rgba(93, 48, 20, 0.32)" }}
+                >
+                  beg requested to&nbsp;
+                  <Link
+                    href={`/profile/${message?.beggedTo}`}
+                    className="font-semibold"
+                  >
+                    {message?.beggedTo?.slice(0, 4)}...
+                    {message?.beggedTo?.slice(-4)}
+                  </Link>
                 </div>
                 <div className="mt-4">
                   <Virtuoso
@@ -1137,9 +1230,7 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                                 className="w-5 h-5"
                               />
                               <a
-                                href={`https://solscan.io/account/${comment.walletAddress}`}
-                                target="_blank"
-                                rel="noreferrer noopener nofollower"
+                                href={`/profile/${comment.walletAddress}`}
                                 className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
                               >
                                 {comment.walletAddress.slice(0, 4)}...

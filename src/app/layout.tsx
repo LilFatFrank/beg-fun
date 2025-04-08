@@ -10,6 +10,7 @@ import LiveChat from "@/components/LiveChat";
 import AudioOptions from "@/components/AudioOptions";
 import Footer from "@/components/Footer";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { UserProvider } from "@/contexts/UserContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -110,24 +111,26 @@ export default function RootLayout({
         />
         <ClientWalletProvider>
           <WebSocketProvider>
-            <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
-              <div className="grow flex flex-col w-full py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
-                <AppHeader />
-                <div className="w-full flex flex-1 h-full gap-4 md:gap-6 lg:gap-[40px] lg:py-4 lg:h-[calc(100%-60px)]">
-                  <div className="w-full lg:w-[75%] flex flex-col">
-                    {children}
-                  </div>
-                  {/* Right section - hidden on mobile */}
-                  <div className="hidden lg:block w-[25%]">
-                    <div className="flex-grow mt-6 flex flex-col gap-4 w-full h-full">
-                      <LiveChat />
-                      <AudioOptions />
+            <UserProvider>
+              <div className="container h-[calc(100vh-40px)] mx-auto flex flex-col">
+                <div className="grow flex flex-col w-full py-[20px] md:py-[40px] max-md:px-[20px] flex-1 h-full">
+                  <AppHeader />
+                  <div className="w-full flex flex-1 h-full gap-4 md:gap-6 lg:gap-[40px] lg:py-4 lg:h-[calc(100%-60px)]">
+                    <div className="w-full lg:w-[75%] flex flex-col">
+                      {children}
+                    </div>
+                    {/* Right section - hidden on mobile */}
+                    <div className="hidden lg:block w-[25%]">
+                      <div className="flex-grow mt-6 flex flex-col gap-4 w-full h-full">
+                        <LiveChat />
+                        <AudioOptions />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <Footer />
+              <Footer />
+            </UserProvider>
           </WebSocketProvider>
         </ClientWalletProvider>
       </body>

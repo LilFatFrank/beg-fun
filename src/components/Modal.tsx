@@ -36,12 +36,23 @@ const Modal = ({
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
       style={{ backgroundColor: "rgba(93, 48, 20, 0.88)" }}
-      onClick={preventClose ? undefined : onClose}
+      onClick={
+        preventClose
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onClose();
+            }
+      }
     >
       <div
         className="bg-[#FFD44F] w-full max-w-[540px] p-4 rounded-[8px] border border-[#FF9933] max-h-[80vh] overflow-y-auto"
         style={{ ...style }}
-        onClick={(e) => {e.stopPropagation(); e.preventDefault();}}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
       >
         {children}
       </div>

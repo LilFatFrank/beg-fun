@@ -1,6 +1,13 @@
 "use client";
 import React, { useRef, useEffect } from "react";
-import { Connection, PublicKey, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
+import {
+  Connection,
+  PublicKey,
+  SYSVAR_RENT_PUBKEY,
+  LAMPORTS_PER_SOL,
+  SystemProgram,
+  Transaction,
+} from "@solana/web3.js";
 import { useState, useCallback, useMemo } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
@@ -10,16 +17,8 @@ import {
   formatMessageTime,
   formatSolAmount,
   getFlagIcon,
-  getRandomVoiceId,
-  getRandomVoiceType,
-  getWordCount,
-  isVideoFile,
   isVideoUrl,
-  MAX_WORDS,
-  MIN_WORDS,
   reactions,
-  solAmounts,
-  validateSolAmount,
   voiceIds,
 } from "@/utils";
 import { VirtuosoGrid } from "react-virtuoso";
@@ -31,8 +30,13 @@ import { ReactionsType } from "@/interfaces";
 import MessageText from "@/components/MessageText";
 import Link from "next/link";
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import BN from "bn.js";
+import CreateBegForm from "@/components/CreateBegForm";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Home() {
   const { websocket, onMessage } = useWebSocket();
@@ -71,12 +75,10 @@ export default function Home() {
     has_next: false,
     has_prev: false,
   });
+  const { userData: contextUserData } = useUser();
   const [walletAddress, setWalletAddress] = useState("");
-  const [messageText, setMessageText] = useState("");
-  const [solAmount, setSolAmount] = useState("");
   const [lastActive, setLastActive] = useState<number>(Date.now());
   const idleCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [wordCount, setWordCount] = useState(0);
   const [isInCooldown, setIsInCooldown] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const { publicKey, sendTransaction, connected } = useWallet();
@@ -88,10 +90,6 @@ export default function Home() {
   const [reactionsMessageId, setReactionsMessageId] = useState<string | null>(
     null
   );
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [deletingMessageIds, setDeletingMessageIds] = useState<string[]>([]);
   const [viewImageModal, setViewImageModal] = useState<{
     isOpen: boolean;
@@ -109,61 +107,6 @@ export default function Home() {
   const adminWallets = process.env.NEXT_PUBLIC_ADMIN_WALLETS
     ? process.env.NEXT_PUBLIC_ADMIN_WALLETS.split(",")
     : [];
-
-  // Function to generate presigned URL and upload image
-  const getPresignedUrlAndUpload = async (
-    file: File
-  ): Promise<string | null> => {
-    try {
-      setUploadingImage(true);
-
-      // Request presigned URL
-      const response = await fetch(
-        "https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            method: "generate_upload_url",
-            walletAddress: publicKey?.toBase58() || walletAddress,
-            contentType: file.type,
-            fileExtension: file.name.split(".").pop(),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to get presigned URL");
-      }
-
-      const data = await response.json();
-      console.log("Presigned URL response:", data);
-
-      // Upload file to S3 using presigned URL
-      const uploadResponse = await fetch(data.data.uploadUrl, {
-        method: "PUT",
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error("Upload failed with status:", uploadResponse.status);
-        console.error("Upload error:", errorText);
-        throw new Error(`Failed to upload image to S3: ${errorText}`);
-      }
-
-      return data.data.imageUrl;
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Failed to upload image. Please try again.");
-      return null;
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
   // Function to fetch initial messages
   const fetchInitialMessages = useCallback(async () => {
     try {
@@ -367,7 +310,7 @@ export default function Home() {
           }
         }
       } catch (error) {
-        toast.error("Error parsing message");
+        toast.error("Error fetching beg");
         console.error("Error parsing message:", error);
       }
     });
@@ -377,106 +320,9 @@ export default function Home() {
     };
   }, [onMessage]);
 
-  const handleSendMessage = async () => {
-    try {
-      if (isInCooldown) {
-        toast.error(
-          `Please wait ${cooldownSeconds}s before sending another message`
-        );
-        return;
-      }
-
-      if (Number(solAmount) <= 0) {
-        toast.error(`Sol amount must be greater than 0`);
-        return;
-      }
-
-      if (uploadingImage) {
-        toast.error(`Please wait uploading beg content`);
-        return;
-      }
-
-      if (!messageText.trim()) {
-        toast.error("Please enter a message");
-        return;
-      }
-
-      const words = getWordCount(messageText);
-      if (words < MIN_WORDS) {
-        toast.error(`Message must be at least ${MIN_WORDS} words`);
-        return;
-      }
-
-      if (words > MAX_WORDS) {
-        toast.error(`Message cannot exceed ${MAX_WORDS} words`);
-        return;
-      }
-
-      if (!walletAddress.trim()) {
-        toast.error("Please enter a wallet address");
-        return;
-      }
-
-      if (!solAmount.trim()) {
-        toast.error("Please enter a SOL amount");
-        return;
-      }
-
-      if (websocket?.readyState !== WebSocket.OPEN) {
-        toast.error("Connection error. Please try again.");
-        return;
-      }
-
-      const selectedVoiceType = getRandomVoiceType();
-      const selectedVoiceId = getRandomVoiceId(selectedVoiceType);
-
-      // If there's an image file, upload it first
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await getPresignedUrlAndUpload(imageFile);
-        if (!imageUrl) {
-          toast.error("Image upload failed. Please try again.");
-          return;
-        }
-      }
-
-      const messageData = {
-        action: "sendBegMessage",
-        walletAddress: walletAddress,
-        text: messageText,
-        solAmount: solAmount,
-        begStatus: "pending",
-        voiceType: selectedVoiceType,
-        voiceId: selectedVoiceId,
-        imageUrl: imageUrl,
-      };
-
-      websocket.send(JSON.stringify(messageData));
-
-      setMessageText("");
-      setUploadedImage(null);
-      setImageFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      if (!connected) setWalletAddress("");
-      setSolAmount("");
-
-      // Start cooldown
-      setIsInCooldown(true);
-      setCooldownSeconds(COOLDOWN_DURATION);
-    } catch (error) {
-      toast.error("Error sending message");
-      console.log(error);
-    }
-  };
-
   const deleteBegMessage = (messageId: string) => {
     try {
-      if (
-        websocket &&
-        websocket.readyState === WebSocket.OPEN
-      ) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
         // Add this message ID to the deleting list
         setDeletingMessageIds((prev) => [...prev, messageId]);
 
@@ -564,22 +410,6 @@ export default function Home() {
     }
   }, [publicKey]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    const words = getWordCount(text);
-    if (words <= MAX_WORDS) {
-      setMessageText(text);
-      setWordCount(words);
-    }
-  };
-
   const handleDonate = async (
     recipientAddress: string,
     amount: string,
@@ -642,14 +472,14 @@ export default function Home() {
 
       const quoteResponse = await fetch(
         `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${process.env.NEXT_PUBLIC_PUMP_ADD}&amount=${swapAmount}&slippageBps=100&onlyDirectRoutes=false&asLegacyTransaction=true`
-      ).then(res => res.json());
-
-      console.log("Quote response:", quoteResponse);
+      ).then((res) => res.json());
 
       // Check if the response has the required data
       if (!quoteResponse || !quoteResponse.outAmount) {
         console.error("Quote response error:", quoteResponse);
-        throw new Error(`Failed to get quote from Jupiter: ${JSON.stringify(quoteResponse)}`);
+        throw new Error(
+          `Failed to get quote from Jupiter: ${JSON.stringify(quoteResponse)}`
+        );
       }
 
       // Get swap transaction
@@ -658,32 +488,33 @@ export default function Home() {
         userPublicKey: publicKey.toBase58(),
       });
 
-      const swapResponse = await fetch(
-        "https://quote-api.jup.ag/v6/swap",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            quoteResponse,
-            userPublicKey: publicKey.toBase58(),
-            wrapUnwrapSOL: true,
-            computeUnitPriceMicroLamports: 1000,
-            asLegacyTransaction: true,
-          }),
-        }
-      ).then(res => res.json());
+      const swapResponse = await fetch("https://quote-api.jup.ag/v6/swap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          quoteResponse,
+          userPublicKey: publicKey.toBase58(),
+          wrapUnwrapSOL: true,
+          computeUnitPriceMicroLamports: 1000,
+          asLegacyTransaction: true,
+        }),
+      }).then((res) => res.json());
 
       console.log("Swap response:", swapResponse);
 
       if (!swapResponse || !swapResponse.swapTransaction) {
         console.error("Swap response error:", swapResponse);
-        throw new Error(`Failed to create swap transaction: ${JSON.stringify(swapResponse)}`);
+        throw new Error(
+          `Failed to create swap transaction: ${JSON.stringify(swapResponse)}`
+        );
       }
 
       // Add swap transaction to our transaction
-      const swapTransaction = Transaction.from(Buffer.from(swapResponse.swapTransaction, 'base64'));
+      const swapTransaction = Transaction.from(
+        Buffer.from(swapResponse.swapTransaction, "base64")
+      );
       transaction.add(...swapTransaction.instructions);
 
       // Find our (sender's) associated token account for BEGS
@@ -707,16 +538,30 @@ export default function Home() {
       );
 
       // Add create associated token account instruction if it doesn't exist
-      const recipientTokenAccountInfo = await connection.getAccountInfo(recipientTokenAccount);
+      const recipientTokenAccountInfo = await connection.getAccountInfo(
+        recipientTokenAccount
+      );
       if (!recipientTokenAccountInfo) {
         transaction.add({
           programId: ASSOCIATED_TOKEN_PROGRAM_ID,
           keys: [
             { pubkey: publicKey, isSigner: true, isWritable: true },
-            { pubkey: recipientTokenAccount, isSigner: false, isWritable: true },
+            {
+              pubkey: recipientTokenAccount,
+              isSigner: false,
+              isWritable: true,
+            },
             { pubkey: toPubkey, isSigner: false, isWritable: false },
-            { pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!), isSigner: false, isWritable: false },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            {
+              pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!),
+              isSigner: false,
+              isWritable: false,
+            },
+            {
+              pubkey: SystemProgram.programId,
+              isSigner: false,
+              isWritable: false,
+            },
             { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
             { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
           ],
@@ -725,7 +570,9 @@ export default function Home() {
       }
 
       // Calculate BEGS amount to send to recipient (95% of swapped amount)
-      const begsAmount = Math.floor((Number(quoteResponse.outAmount) * 95) / 100);
+      const begsAmount = Math.floor(
+        (Number(quoteResponse.outAmount) * 95) / 100
+      );
 
       // Add BEGS transfer instruction from our ATA to recipient's ATA
       transaction.add({
@@ -735,7 +582,7 @@ export default function Home() {
           { pubkey: recipientTokenAccount, isSigner: false, isWritable: true }, // To recipient's ATA
           { pubkey: publicKey, isSigner: true, isWritable: false }, // Authority
         ],
-        data: Buffer.from([3, ...new BN(begsAmount).toArray('le', 8)]), // Transfer instruction
+        data: Buffer.from([3, ...new BN(begsAmount).toArray("le", 8)]), // Transfer instruction
       });
 
       const signature = await sendTransaction(transaction, connection);
@@ -775,6 +622,32 @@ export default function Home() {
           },
         })
       );
+      const updateDonorInfo = {
+        action: "updateBegUserInfo",
+        walletAddress: contextUserData?.walletAddress,
+        updates: {
+          totalDonations: (contextUserData?.totalDonations || 0) + 1,
+          amountDonated: (contextUserData?.amountDonated || 0) + amount,
+        },
+      };
+
+      websocket?.send(JSON.stringify(updateDonorInfo));
+
+      const response = await fetch(
+        `https://7dfinzalu3.execute-api.ap-south-1.amazonaws.com/dev/?method=get_beg_user&walletAddress=${recipientAddress}`
+      );
+      const data = await response.json();
+      if (data.message === "User retrieved successfully") {
+        const updateBeggarInfo = {
+          action: "updateBegUserInfo",
+          walletAddress: data.data?.walletAddress,
+          updates: {
+            amountRaised: (data.data?.amountRaised || 0) + amount,
+          },
+        };
+
+        websocket?.send(JSON.stringify(updateBeggarInfo));
+      }
     } catch (error) {
       toast.error("Could not make donation!");
       console.log("Transaction error:", error);
@@ -806,10 +679,7 @@ export default function Home() {
   }, [fetchMoreMessages]);
 
   const reactToBegMessage = (messageId: string, reactionType: string) => {
-    if (
-      !websocket ||
-      websocket.readyState !== WebSocket.OPEN
-    ) {
+    if (!websocket || websocket.readyState !== WebSocket.OPEN) {
       console.error("WebSocket connection not open");
       return;
     }
@@ -822,38 +692,6 @@ export default function Home() {
         reactionType,
       })
     );
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    // Log file type for debugging
-    console.log("Selected file type:", file.type);
-
-    // Check file size (10MB limit)
-    const fileSize = file.size / 1024 / 1024; // size in MB
-    if (fileSize > 10) {
-      toast.error("File size should be less than 10MB");
-      return;
-    }
-
-    // Store the file for later upload
-    setImageFile(file);
-
-    // Create local preview URL
-    const imageUrl = URL.createObjectURL(file);
-    setUploadedImage(imageUrl);
-  };
-
-  const handleRemoveImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUploadedImage(null);
-    setImageFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   // Grid components for responsive layout
@@ -968,12 +806,6 @@ export default function Home() {
       };
     }
   }, [messages]);
-
-  // Add handler for SOL amount changes in create beg
-  const handleSolAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const validatedAmount = validateSolAmount(e.target.value);
-    setSolAmount(validatedAmount);
-  };
 
   return (
     <>
@@ -1110,12 +942,10 @@ export default function Home() {
                                     className="w-5 h-5 sm:w-6 sm:h-6"
                                   />
                                   <a
-                                    href={`https://solscan.io/account/${msg.walletAddress}`}
+                                    href={`/profile/${msg.walletAddress}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                     }}
-                                    target="_blank"
-                                    rel="noreferrer noopener nofollower"
                                     className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
                                   >
                                     {msg.walletAddress.slice(0, 4)}...
@@ -1362,177 +1192,40 @@ export default function Home() {
             )}
           </div>
 
-          {/* Input area */}
-          <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] block lg:hidden w-full mx-auto">
-            <div className="flex flex-col space-y-2">
-              {isInputAreaOpen && (
-                <>
-                  <div className="flex items-stretch justify-start gap-3 w-full">
-                    <div
-                      className="flex-shrink-0 cursor-pointer border border-[#FFD44F] rounded-[8px] bg-white p-2 flex items-center justify-center self-stretch relative overflow-hidden max-w-[66px] max-h-[66px]"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/avif,.avif,video/mp4,video/webm,video/quicktime,.mov,video/x-msvideo"
-                        onChange={handleImageUpload}
-                      />
-                      {uploadedImage ? (
-                        <>
-                          {imageFile && isVideoFile(imageFile) ? (
-                            <video
-                              src={uploadedImage}
-                              className="object-cover"
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                              }}
-                              muted
-                            />
-                          ) : (
-                            <img
-                              src={uploadedImage}
-                              alt="uploaded preview"
-                              className="object-cover"
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                              }}
-                            />
-                          )}
-                          <button
-                            onClick={handleRemoveImage}
-                            className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full w-4 h-4 flex items-center justify-center text-white z-10"
-                          >
-                            ×
-                          </button>
-                          {uploadingImage && (
-                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <img
-                          src="/assets/upload-image-icon.svg"
-                          alt="upload"
-                          className="w-12 h-12"
-                        />
-                      )}
-                    </div>
-                    <div className="relative w-full flex flex-col">
-                      <textarea
-                        placeholder={
-                          isInCooldown
-                            ? `Please wait ${cooldownSeconds}s before sending another message`
-                            : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
-                        }
-                        value={messageText}
-                        onChange={handleMessageChange}
-                        onKeyDown={handleKeyPress}
-                        disabled={isInCooldown}
-                        className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full h-full disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-[#8F95B2] text-black"
-                        rows={2}
-                      />
-                      <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
-                        {wordCount}/{MAX_WORDS}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-col-reverse flex items-center gap-2">
-                    <div className="w-full rounded-[8px] bg-white p-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <img
-                          src="/assets/solana-black-icon.svg"
-                          alt="solana"
-                          className="w-5 h-5 sm:w-6 sm:h-6"
-                        />
-                        <input
-                          placeholder="sol amount"
-                          value={solAmount}
-                          onChange={handleSolAmountChange}
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          type="number"
-                          className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
-                        />
-                      </div>
-                      <div className="flex items-center justify-start gap-1 flex-wrap">
-                        {solAmounts.map((sa) => (
-                          <div
-                            key={sa}
-                            className={`p-2 rounded-[1000px] flex items-center gap-1 border cursor-pointer ${
-                              sa === solAmount
-                                ? "border-black bg-[#FFD44F]"
-                                : "border-[#FFD44F] bg-black"
-                            }`}
-                            onClick={() => setSolAmount(sa)}
-                          >
-                            <img
-                              src={
-                                sa === solAmount
-                                  ? "/assets/solana-black-icon.svg"
-                                  : "/assets/solana-yellow-icon.svg"
-                              }
-                              alt="sol"
-                              className="w-3 h-3"
-                            />
-                            <span
-                              className={`${
-                                sa === solAmount
-                                  ? "text-black"
-                                  : "text-[#FFD44F]"
-                              } text-[12px] leading-tight`}
-                            >
-                              {sa}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-                      <img
-                        src="/assets/phantom-black-icon.svg"
-                        alt="phantom"
-                        className="w-5 h-5 sm:w-6 sm:h-6"
-                      />
-                      <input
-                        type="text"
-                        placeholder="sol address"
-                        value={walletAddress}
-                        onChange={(e) => setWalletAddress(e.target.value)}
-                        className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 placeholder:text-[#8F95B2] text-black"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-              <div className="flex items-center gap-2">
-                {isInputAreaOpen && (
-                  <button
-                    onClick={() => {
-                      setIsInputAreaOpen(false);
-                      setMessageText("");
-                      setSolAmount("");
-                      if (!connected) setWalletAddress("");
-                    }}
-                    className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none lg:hidden"
-                  >
-                    ✕
-                  </button>
-                )}
+          {/* Mobile Input area */}
+          <div className="block lg:hidden w-full mx-auto">
+            {isInputAreaOpen ? (
+              <CreateBegForm
+                isMobile={true}
+                onClose={() => {
+                  setIsInputAreaOpen(false);
+                  if (!connected) setWalletAddress("");
+                }}
+                onSendMessage={(messageData) => {
+                  websocket?.send(JSON.stringify(messageData));
+                  const updateUserBeg = {
+                    action: "updateBegUserInfo",
+                    walletAddress: contextUserData?.walletAddress,
+                    updates: {
+                      totalBegs: (contextUserData?.totalBegs || 0) + 1,
+                    },
+                  };
+                  websocket?.send(JSON.stringify(updateUserBeg));
+                  if (!connected) setWalletAddress("");
+                  setIsInputAreaOpen(false);
+
+                  // Start cooldown after sending message
+                  setIsInCooldown(true);
+                  setCooldownSeconds(COOLDOWN_DURATION);
+                }}
+                isInCooldown={isInCooldown}
+                cooldownSeconds={cooldownSeconds}
+              />
+            ) : (
+              <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto">
                 <button
-                  onClick={() => {
-                    if (!isInputAreaOpen) {
-                      setIsInputAreaOpen(true);
-                    } else {
-                      handleSendMessage();
-                    }
-                  }}
-                  className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
+                  onClick={() => setIsInputAreaOpen(true)}
+                  className="w-full h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
                 >
                   <img
                     src="/assets/bolt-icon.svg"
@@ -1542,7 +1235,7 @@ export default function Home() {
                   <span className="text-[#FFD44F]">BEG</span>
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </>
       )}
@@ -1583,187 +1276,29 @@ export default function Home() {
         isOpen={openCreateBegModal}
         onClose={() => setOpenCreateBegModal(false)}
       >
-        <div className="py-3 px-4 sm:py-4 sm:px-6 rounded-[8px] bg-[#FFD44F] w-full mx-auto hidden lg:block">
-          <div className="flex flex-col space-y-2">
-            {isInputAreaOpen && (
-              <>
-                <div className="flex items-stretch justify-start gap-3 w-full">
-                  <div
-                    className="flex-shrink-0 cursor-pointer border border-[#FFD44F] rounded-[8px] bg-white p-2 flex items-center justify-center self-stretch relative overflow-hidden max-w-[66px] max-h-[66px]"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/avif,.avif,video/mp4,video/webm,video/quicktime,.mov,video/x-msvideo"
-                      onChange={handleImageUpload}
-                    />
-                    {uploadedImage ? (
-                      <>
-                        {imageFile && isVideoFile(imageFile) ? (
-                          <video
-                            src={uploadedImage}
-                            className="object-cover"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                            }}
-                            muted
-                          />
-                        ) : (
-                          <img
-                            src={uploadedImage}
-                            alt="uploaded preview"
-                            className="object-cover"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                            }}
-                          />
-                        )}
-                        <button
-                          onClick={handleRemoveImage}
-                          className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full w-4 h-4 flex items-center justify-center text-white z-10"
-                        >
-                          ×
-                        </button>
-                        {uploadingImage && (
-                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <img
-                        src="/assets/upload-image-icon.svg"
-                        alt="upload"
-                        className="w-12 h-12"
-                      />
-                    )}
-                  </div>
-                  <div className="relative w-full flex flex-col">
-                    <textarea
-                      placeholder={
-                        isInCooldown
-                          ? `Please wait ${cooldownSeconds}s before sending another message`
-                          : `enter your beg request (min. ${MIN_WORDS}, max. ${MAX_WORDS} words)`
-                      }
-                      value={messageText}
-                      onChange={handleMessageChange}
-                      onKeyDown={handleKeyPress}
-                      disabled={isInCooldown}
-                      className="p-2 rounded-[8px] bg-white resize-none text-[14px] sm:text-[16px] outline-none border-none w-full h-full disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-[#8F95B2] text-black"
-                      rows={2}
-                    />
-                    <div className="absolute bottom-2 right-2 text-[10px] sm:text-[12px] text-gray-500">
-                      {wordCount}/{MAX_WORDS}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-col-reverse flex items-center gap-2">
-                  <div className="w-full rounded-[8px] bg-white p-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <img
-                        src="/assets/solana-black-icon.svg"
-                        alt="solana"
-                        className="w-5 h-5 sm:w-6 sm:h-6"
-                      />
-                      <input
-                        placeholder="sol amount"
-                        value={solAmount}
-                        onChange={handleSolAmountChange}
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        type="number"
-                        className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 remove-arrow placeholder:text-[#8F95B2] text-black"
-                      />
-                    </div>
-                    <div className="flex items-center justify-start gap-1 flex-wrap">
-                      {solAmounts.map((sa) => (
-                        <div
-                          key={sa}
-                          className={`p-2 rounded-[1000px] flex items-center gap-1 border cursor-pointer ${
-                            sa === solAmount
-                              ? "border-black bg-[#FFD44F]"
-                              : "border-[#FFD44F] bg-black"
-                          }`}
-                          onClick={() => setSolAmount(sa)}
-                        >
-                          <img
-                            src={
-                              sa === solAmount
-                                ? "/assets/solana-black-icon.svg"
-                                : "/assets/solana-yellow-icon.svg"
-                            }
-                            alt="sol"
-                            className="w-3 h-3"
-                          />
-                          <span
-                            className={`${
-                              sa === solAmount
-                                ? "text-black"
-                                : "text-[#FFD44F]"
-                            } text-[12px] leading-tight`}
-                          >
-                            {sa}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="w-full rounded-[8px] bg-white p-2 flex items-center gap-2">
-                    <img
-                      src="/assets/phantom-black-icon.svg"
-                      alt="phantom"
-                      className="w-5 h-5 sm:w-6 sm:h-6"
-                    />
-                    <input
-                      type="text"
-                      placeholder="sol address"
-                      value={walletAddress}
-                      onChange={(e) => setWalletAddress(e.target.value)}
-                      className="w-full outline-none border-none text-[14px] sm:text-[16px] pr-2 placeholder:text-[#8F95B2] text-black"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="flex items-center gap-2">
-              {isInputAreaOpen && (
-                <button
-                  onClick={() => {
-                    setIsInputAreaOpen(false);
-                    setMessageText("");
-                    setSolAmount("");
-                    if (!connected) setWalletAddress("");
-                  }}
-                  className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] flex items-center justify-center cursor-pointer bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-full outline-none border-none lg:hidden"
-                >
-                  ✕
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  if (!isInputAreaOpen) {
-                    setIsInputAreaOpen(true);
-                  } else {
-                    handleSendMessage();
-                  }
-                }}
-                className="flex-1 h-[36px] sm:h-[40px] flex items-center justify-center cursor-pointer gap-2 bg-black text-[#FFD44F] text-[14px] sm:text-[16px] rounded-[8px] outline-none border-none"
-              >
-                <img
-                  src="/assets/bolt-icon.svg"
-                  alt="bolt"
-                  className="w-3 h-3 sm:w-4 sm:h-4"
-                />
-                <span className="text-[#FFD44F]">BEG</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateBegForm
+          onClose={() => setOpenCreateBegModal(false)}
+          onSendMessage={(messageData) => {
+            websocket?.send(JSON.stringify(messageData));
+
+            const updateUserBeg = {
+              action: "updateBegUserInfo",
+              walletAddress: contextUserData?.walletAddress,
+              updates: {
+                totalBegs: (contextUserData?.totalBegs || 0) + 1,
+              },
+            };
+            websocket?.send(JSON.stringify(updateUserBeg));
+            if (!connected) setWalletAddress("");
+            setOpenCreateBegModal(false);
+
+            // Start cooldown after sending message
+            setIsInCooldown(true);
+            setCooldownSeconds(COOLDOWN_DURATION);
+          }}
+          isInCooldown={isInCooldown}
+          cooldownSeconds={cooldownSeconds}
+        />
       </Modal>
     </>
   );

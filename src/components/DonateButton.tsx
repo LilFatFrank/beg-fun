@@ -13,6 +13,7 @@ const DonateButton = ({
   handleDonate,
   donatingMessageId,
   msg,
+  hideSolAmount
 }: {
   handleDonate: (
     recipientAddress: string,
@@ -20,6 +21,7 @@ const DonateButton = ({
     messageId: string
   ) => void;
   donatingMessageId: string | null;
+  hideSolAmount?: boolean;
   msg: {
     _id: string;
     solAmount: string;
@@ -117,7 +119,7 @@ const DonateButton = ({
   return (
     <>
       <div className="w-full flex items-stretch gap-2 h-full">
-        <div
+        {hideSolAmount ? null : <div
           ref={containerRef}
           className="w-[80px] flex-shrink-0 h-auto flex items-center justify-center gap-1 px-1 rounded-[8px] border bg-[#FFD44F]"
           style={{ borderColor: "rgba(93, 48, 20, 40%)" }}
@@ -134,7 +136,7 @@ const DonateButton = ({
           >
             {formatSolAmount(msg.fillAmount)} / {formatSolAmount(msg.solAmount)}
           </span>
-        </div>
+        </div>}
         <button
           onClick={(e) =>{
             e.stopPropagation();
