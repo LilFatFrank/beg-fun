@@ -34,6 +34,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { format } from "date-fns";
 
 interface UserData {
   amountDonated: number;
@@ -706,9 +707,10 @@ const ClientPage: FC<{ params: Promise<{ wallet: string }> }> = memo(
                           {wallet.slice(0, 4)}...{wallet.slice(-4)}
                         </Link>
                         <p className="text-black text-[16px] break-all">
-                          {profileUserData?.walletAddress &&
+                          {profileUserData?.walletAddress ?
                           profileUserData?.bio
                             ? profileUserData?.bio
+                            : `Joined ${profileUserData?.createdAt ? format(new Date(profileUserData.createdAt), 'MMMM yyyy') : ''}`
                             : "User not registered with BegsFun!"}
                         </p>
                       </div>
