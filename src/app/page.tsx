@@ -318,7 +318,7 @@ export default function Home() {
     return () => {
       cleanup();
     };
-  }, [onMessage]);
+  }, [onMessage, setOpenCreateBegModal, setIsInputAreaOpen, setMessages, setDeletingMessageIds, formatSolAmount]);
 
   const deleteBegMessage = (messageId: string) => {
     try {
