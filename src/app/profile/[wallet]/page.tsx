@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import {
   formatSolAmount,
   voiceIds,
-  getFlagIcon,
   formatMessageTime,
   detectSolanaAddress,
   isVideoUrl,
@@ -851,11 +850,6 @@ const ClientPage: FC<{ params: Promise<{ wallet: string }> }> = memo(
                           >
                             <div className="flex items-center gap-2 justify-between">
                               <div className="flex items-center gap-2">
-                                <img
-                                  src={getFlagIcon(msg.voiceType)}
-                                  alt={msg.voiceType.toLowerCase()}
-                                  className="w-5 h-5"
-                                />
                                 <a
                                   href={`/profile/${msg.walletAddress}`}
                                   className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"

@@ -3,12 +3,10 @@ import BackToBegs from "@/components/BackToBegs";
 import DonateComponent from "@/components/DonateComponent";
 import MessageText from "@/components/MessageText";
 import Modal from "@/components/Modal";
-import PlayPauseButton from "@/components/PlayPauseButton";
 import { ReactionsType } from "@/interfaces";
 import {
   detectSolanaAddress,
   formatMessageTime,
-  getFlagIcon,
   getRandomVoiceId,
   getRandomVoiceType,
   isVideoUrl,
@@ -782,11 +780,6 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                     className="lg:basis-2/3 w-full rounded-[8px] border p-4 flex items-start gap-2"
                     style={{ borderColor: "rgba(93, 48, 20, 0.32)" }}
                   >
-                    <img
-                      src={getFlagIcon(message.voiceType)}
-                      alt={message.voiceType.toLowerCase()}
-                      className="w-5 h-5 sm:w-6 sm:h-6"
-                    />
                     <div className="flex flex-col gap-4 w-full h-full items-start justify-between">
                       <div className="flex flex-col gap-4 w-full items-start">
                         <div className="flex items-center justify-between w-full">
@@ -818,11 +811,6 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                                 />
                               </>
                             ) : null}
-                            <PlayPauseButton
-                              text={message.text}
-                              voiceId={message.voiceId}
-                              className="flex-shrink-0"
-                            />
                             <div
                               className="relative"
                               onClick={(e) => {
@@ -1224,11 +1212,6 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                         >
                           <div className="flex items-center gap-2 justify-between">
                             <div className="flex items-center gap-2">
-                              <img
-                                src={getFlagIcon(comment.voiceType)}
-                                alt={comment.voiceType.toLowerCase()}
-                                className="w-5 h-5"
-                              />
                               <a
                                 href={`/profile/${comment.walletAddress}`}
                                 className="font-[Montserrat] text-[#5D3014] font-medium text-[12px] hover:underline"
@@ -1254,11 +1237,6 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
                                   />
                                 </>
                               ) : null}
-                              <PlayPauseButton
-                                text={comment.text}
-                                voiceId={comment.voiceId}
-                                className="flex-shrink-0"
-                              />
                             </div>
                           </div>
                           <div className="flex gap-2">

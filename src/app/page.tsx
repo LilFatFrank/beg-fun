@@ -16,7 +16,6 @@ import {
   detectSolanaAddress,
   formatMessageTime,
   formatSolAmount,
-  getFlagIcon,
   isVideoUrl,
   reactions,
   voiceIds,
@@ -25,7 +24,6 @@ import { VirtuosoGrid } from "react-virtuoso";
 import Modal from "@/components/Modal";
 import SocialLinks from "@/components/SocialLinks";
 import DonateButton from "@/components/DonateButton";
-import PlayPauseButton from "@/components/PlayPauseButton";
 import { ReactionsType } from "@/interfaces";
 import MessageText from "@/components/MessageText";
 import Link from "next/link";
@@ -936,11 +934,6 @@ export default function Home() {
                             <div className="w-full flex-col flex items-start gap-2">
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center gap-1 text-[#5D3014]">
-                                  <img
-                                    src={getFlagIcon(msg.voiceType)}
-                                    alt={msg.voiceType.toLowerCase()}
-                                    className="w-5 h-5 sm:w-6 sm:h-6"
-                                  />
                                   <a
                                     href={`/profile/${msg.walletAddress}`}
                                     onClick={(e) => {
@@ -975,11 +968,6 @@ export default function Home() {
                                       />
                                     </>
                                   ) : null}
-                                  <PlayPauseButton
-                                    text={msg.text}
-                                    voiceId={msg.voiceId}
-                                    className="flex-shrink-0"
-                                  />
                                   <div
                                     className="relative"
                                     onClick={(e) => {
