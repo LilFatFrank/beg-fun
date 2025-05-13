@@ -32,6 +32,9 @@ import BN from "bn.js";
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
 } from "@solana/spl-token";
 import Link from "next/link";
 import { useUser } from "@/contexts/UserContext";
@@ -311,21 +314,6 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
 
         const transaction = new Transaction();
 
-        // Get fresh blockhash
-        const { blockhash, lastValidBlockHeight } =
-          await connection.getLatestBlockhash("finalized");
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-
-        // Add fee transfer instruction
-        transaction.add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: feePubkey,
-            lamports: feeAmount,
-          })
-        );
-
         // Get quote for SOL to BEGS swap
         console.log("Requesting quote with params:", {
           inputMint: "So11111111111111111111111111111111111111112",
@@ -382,88 +370,40 @@ const ClientPage: FC<{ params: Promise<{ id: string }> }> = memo(
         );
         transaction.add(...swapTransaction.instructions);
 
-        // Find our (sender's) associated token account for BEGS
-        const [senderTokenAccount] = await PublicKey.findProgramAddress(
-          [
-            publicKey.toBuffer(),
-            TOKEN_PROGRAM_ID.toBuffer(),
-            new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!).toBuffer(),
-          ],
-          ASSOCIATED_TOKEN_PROGRAM_ID
+        const mint = new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!);
+        const senderTokenAccount = getAssociatedTokenAddressSync(mint, publicKey);
+        const recipientTokenAccount = getAssociatedTokenAddressSync(mint, toPubkey);
+
+        transaction.add(
+          createAssociatedTokenAccountIdempotentInstruction(
+            publicKey,                
+            recipientTokenAccount,     
+            toPubkey,                  
+            mint,                     
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+          )
         );
 
-        // Find the recipient's associated token account for BEGS
-        const [recipientTokenAccount] = await PublicKey.findProgramAddress(
-          [
-            toPubkey.toBuffer(),
-            TOKEN_PROGRAM_ID.toBuffer(),
-            new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!).toBuffer(),
-          ],
-          ASSOCIATED_TOKEN_PROGRAM_ID
-        );
-
-        // Add create associated token account instruction if it doesn't exist
-        const recipientTokenAccountInfo = await connection.getAccountInfo(
-          recipientTokenAccount
-        );
-        if (!recipientTokenAccountInfo) {
-          transaction.add(
-            // Create associated token account
-            {
-              programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-              keys: [
-                { pubkey: publicKey, isSigner: true, isWritable: true },
-                {
-                  pubkey: recipientTokenAccount,
-                  isSigner: false,
-                  isWritable: true,
-                },
-                { pubkey: toPubkey, isSigner: false, isWritable: false },
-                {
-                  pubkey: new PublicKey(process.env.NEXT_PUBLIC_PUMP_ADD!),
-                  isSigner: false,
-                  isWritable: false,
-                },
-                {
-                  pubkey: SystemProgram.programId,
-                  isSigner: false,
-                  isWritable: false,
-                },
-                {
-                  pubkey: TOKEN_PROGRAM_ID,
-                  isSigner: false,
-                  isWritable: false,
-                },
-                {
-                  pubkey: SYSVAR_RENT_PUBKEY,
-                  isSigner: false,
-                  isWritable: false,
-                },
-              ],
-              data: Buffer.from([]),
-            }
-          );
-        }
-
-        // Calculate BEGS amount to send to recipient (95% of swapped amount)
         const begsAmount = Math.floor(
           (Number(quoteResponse.outAmount) * 95) / 100
         );
 
-        // Add BEGS transfer instruction from our ATA to recipient's ATA
-        transaction.add({
-          programId: TOKEN_PROGRAM_ID,
-          keys: [
-            { pubkey: senderTokenAccount, isSigner: false, isWritable: true }, // From our ATA
-            {
-              pubkey: recipientTokenAccount,
-              isSigner: false,
-              isWritable: true,
-            }, // To recipient's ATA
-            { pubkey: publicKey, isSigner: true, isWritable: false }, // Authority
-          ],
-          data: Buffer.from([3, ...new BN(begsAmount).toArray("le", 8)]), // Transfer instruction
-        });
+        transaction.add(
+          createTransferCheckedInstruction(
+            senderTokenAccount,        
+            mint,                      
+            recipientTokenAccount,    
+            publicKey,                
+            begsAmount,              
+            6                    
+          )
+        );
+
+        // Get a fresh blockhash and set feePayer right before sending
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
 
         const signature = await sendTransaction(transaction, connection);
 
